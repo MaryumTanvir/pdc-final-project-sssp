@@ -1,0 +1,39 @@
+Execution
+
+g++ -fopenmp Dynamic_new.cpp -I/usr/include -L/usr/lib/x86_64-linux-gnu -lmetis -o dynamic_sssp
+./dynamic_sssp
+
+
+Libraries (try both on ubuntu terminal and vs terminal)
+sudo apt-get install libmetis-dev
+sudo apt install libmetis-dev
+sudo apt-get install libomp-dev
+
+
+Run:
+
+Input Files;
+1) graph.txt
+2) update_small.txt
+
+Cpps
+1) Dynamic_Sequential.cpp
+2) Dynamic_new.cpp
+
+
+////////////////////////////////////////////
+
+Extras: (Not needed for execution)
+Extra Py Files:
+1) generate_dataset.py generates 20 vertices graph randomly -> graph.txt
+2) generae_update.py generates 100 update rows -> update_small.txt
+3) Extra: sort_dataset sorts large_input -> ascending order sort_output.txt
+
+Extra Dataset:
+1) large_input.txt original 155MB Dataset
+2) large_update update file for large_input.txt
+
+Extra CPP:
+1) SSSP_Basic basic metis graph reading
+
+
