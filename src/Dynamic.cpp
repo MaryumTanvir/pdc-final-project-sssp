@@ -412,6 +412,11 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
                         local_del_change = true; // Indicate change (Algorithm 4, line 15)
                     }
                 }
+                // NEW: Mark neighbors as affected to ensure they are re-evaluated (Algorithm 4, lines 38-41)
+                for (const auto &edge : G.adj[v])
+                {
+                    T.affected[edge.first] = true;
+                }
             }
         }
 
@@ -548,7 +553,7 @@ int main(int argc, char *argv[])
 
     // Generate edge changes for dynamic updates (Article: Dynamic Graph Changes, Section 4, Page 4)
     int num_changes = 5;
-    double insert_ratio = 0.0;
+    double insert_ratio = 1;
     auto changes = generateChanges(G, num_changes, insert_ratio, rank);
 
     // Gather all changes to all processes (Article: Distributed Change Propagation, Section 4)
