@@ -3,6 +3,9 @@ Execution
 g++ -fopenmp Dynamic_new.cpp -I/usr/include -L/usr/lib/x86_64-linux-gnu -lmetis -o dynamic_sssp
 ./dynamic_sssp
 
+mpic++ -fopenmp Dynamic.cpp -I/usr/include -L/usr/lib/x86_64-linux-gnu -lmetis -o dynamic
+mpirun -np 4 --oversubscribe ./dynamic
+
 
 Libraries (try both on ubuntu terminal and vs terminal)
 sudo apt-get install libmetis-dev
