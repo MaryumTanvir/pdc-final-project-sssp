@@ -264,13 +264,14 @@ vector<pair<pair<int, int>, int>> generateChanges(const Graph &G, int num_change
         uniform_int_distribution<> weight_dist(1, 1); // Adjusted weight range for consistency
         bernoulli_distribution insert_dist(insert_ratio);
 
-        // Generate exactly num_changes (2) edge changes
+        // Generate exactly num_changes edge changes
         for (int i = 0; i < num_changes; ++i)
         {
             int u = vertex_dist(gen);
             int v = vertex_dist(gen);
             while (u == v)
                 v = vertex_dist(gen);
+
             bool exists = false;
             for (const auto &edge : G.adj[u])
             {
@@ -280,8 +281,25 @@ vector<pair<pair<int, int>, int>> generateChanges(const Graph &G, int num_change
                     break;
                 }
             }
-            int w = insert_dist(gen) ? weight_dist(gen) : (exists ? -1 : weight_dist(gen));
-            changes.push_back({{u, v}, w});
+
+            if (insert_ratio == 0.0)
+            {
+                // Only generate deletion edges
+                if (exists)
+                {
+                    changes.push_back({{u, v}, -1}); // Deletion edge
+                }
+                else
+                {
+                    --i; // Retry to ensure exactly num_changes deletions
+                }
+            }
+            else
+            {
+                // Generate both insertions and deletions based on insert_ratio
+                int w = insert_dist(gen) ? weight_dist(gen) : (exists ? -1 : weight_dist(gen));
+                changes.push_back({{u, v}, w});
+            }
         }
     }
     return changes;
@@ -529,8 +547,8 @@ int main(int argc, char *argv[])
     }
 
     // Generate edge changes for dynamic updates (Article: Dynamic Graph Changes, Section 4, Page 4)
-    int num_changes = 15;
-    double insert_ratio = 1;
+    int num_changes = 5;
+    double insert_ratio = 0.0;
     auto changes = generateChanges(G, num_changes, insert_ratio, rank);
 
     // Gather all changes to all processes (Article: Distributed Change Propagation, Section 4)
