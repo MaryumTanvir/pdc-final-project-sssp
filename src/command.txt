@@ -40,3 +40,6 @@ Extra CPP:
 1) SSSP_Basic basic metis graph reading
 
 
+
+
+Vm Commands

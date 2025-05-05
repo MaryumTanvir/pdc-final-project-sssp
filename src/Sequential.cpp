@@ -315,7 +315,7 @@ bool loadGraph(const string& filename, vector<idx_t>& xadj, vector<idx_t>& adjnc
 }
 
 int main() {
-    string filename = "graph.txt";
+    string filename = "../data/graph.txt";
 
     // Graph Variables
     vector<idx_t> xadj, adjncy, adjwgt;
