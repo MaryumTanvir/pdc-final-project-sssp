@@ -305,6 +305,7 @@ vector<pair<pair<int, int>, int>> generateChanges(const Graph &G, int num_change
     return changes;
 }
 
+///////////////////////////////////////////////////// schdule (dynamic)
 // Implements parallel dynamic SSSP update algorithm (Article: Algorithm 4 - Asynchronous Update of SSSP, Section 5.1, Page 6)
 // Extends shared-memory framework to distributed-memory using MPI and METIS partitioning
 void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>, int>> &changes,

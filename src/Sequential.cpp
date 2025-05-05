@@ -75,7 +75,7 @@ void sequentialSSSP(const Graph& G, SSSPTree& T, int source) {
         for (const auto& edge : G.adj[u]) {
             int v = edge.first;
             int w = edge.second;
-            int new_dist = safeAdd(T.dist[u], w);
+            int new_dist = safeAdd(T.dist[u], w); // Safe add to prevent overflow
             if (T.dist[v] > new_dist) {
                 T.dist[v] = new_dist;
                 T.parent[v] = u;
@@ -162,7 +162,7 @@ void updateSSSP(Graph& G, SSSPTree& T, const vector<pair<pair<int, int>, int>>& 
                 for (int c = 0; c < V; ++c) {
                     if (T.parent[c] == v) {
                         T.dist[c] = INT_MAX;
-                        T.parent[c] = -1;
+                        T.parent[c] = -1; //
                         T.affected_del[c] = true;
                         T.affected[c] = true;
                         change = true;
@@ -317,6 +317,7 @@ bool loadGraph(const string& filename, vector<idx_t>& xadj, vector<idx_t>& adjnc
 int main() {
     string filename = "graph.txt";
 
+    // Graph Variables
     vector<idx_t> xadj, adjncy, adjwgt;
     idx_t nvtxs = 0, nedges = 0;
     Graph G(0); // Will be initialized in loadGraph
