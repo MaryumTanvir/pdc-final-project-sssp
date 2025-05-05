@@ -1,4 +1,3 @@
-#include <metis.h>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -14,12 +13,14 @@ using namespace std;
 
 // Structure to represent an edge
 struct Edge {
-    idx_t from, to, weight;
-    Edge(idx_t f, idx_t t, idx_t w) : from(f), to(t), weight(w) {}
+    int from, to, weight;
+    Edge(int f, int t, int w) : from(f), to(t), weight(w) {}
 };
 
 // Graph representation using adjacency list
-struct Graph {
+struct Graph
+{
+
     int V; // Number of vertices
     vector<vector<pair<int, int>>> adj; // Adjacency list: (neighbor, weight)
     Graph(int vertices) : V(vertices), adj(vertices) {}
@@ -31,7 +32,10 @@ struct Graph {
         adj[u].push_back({v, w});
         adj[v].push_back({u, w}); // Undirected graph
     }
-    void removeEdge(int u, int v) {
+
+
+    void removeEdge(int u, int v)
+    {
         // Remove (u,v)
         auto it_u = find_if(adj[u].begin(), adj[u].end(), 
                            [v](const pair<int, int>& e) { return e.first == v; });
@@ -44,13 +48,15 @@ struct Graph {
 };
 
 // SSSP tree structure
-struct SSSPTree {
+struct SSSPTree
+{
     vector<int> parent;
     vector<int> dist;
     vector<bool> affected;
     vector<bool> affected_del;
     SSSPTree(int V) : parent(V, -1), dist(V, INT_MAX), affected(V, false), affected_del(V, false) {}
 };
+
 
 // Safe addition to prevent overflow
 int safeAdd(int a, int b) {
@@ -117,7 +123,8 @@ void updateSSSP(Graph& G, SSSPTree& T, const vector<pair<pair<int, int>, int>>& 
     int V = G.V;
     
     // Step 1: Process changed edges
-    for (const auto& change : changes) {
+    for (const auto& change : changes)
+    {
         int u = change.first.first;
         int v = change.first.second;
         int w = change.second;
@@ -132,7 +139,9 @@ void updateSSSP(Graph& G, SSSPTree& T, const vector<pair<pair<int, int>, int>>& 
                 T.parent[y] = x;
                 T.affected[y] = true;
             }
-        } else { // Deletion
+        } 
+        
+        else { // Deletion
             G.removeEdge(u, v); // Update graph
             // Check if edge is in the current SSSP tree
             if (T.parent[v] == u) {
@@ -152,7 +161,8 @@ void updateSSSP(Graph& G, SSSPTree& T, const vector<pair<pair<int, int>, int>>& 
     // Algo 3
     // Step 2: Update affected subgraphs
     bool change = true;
-    while (change) {
+    while (change)
+    {
         change = false;
         
         // Process deletion-affected vertices
@@ -206,8 +216,8 @@ void updateSSSP(Graph& G, SSSPTree& T, const vector<pair<pair<int, int>, int>>& 
 }
 
 // Function to load and preprocess graph
-bool loadGraph(const string& filename, vector<idx_t>& xadj, vector<idx_t>& adjncy, 
-               vector<idx_t>& adjwgt, idx_t& nvtxs, idx_t& nedges, Graph& G) {
+bool loadGraph(const string& filename, vector<int>& xadj, vector<int>& adjncy, 
+               vector<int>& adj_weight, int& num_vertices, int& nedges, Graph& G) {
     ifstream file(filename);
     if (!file.is_open()) {
         cerr << "Error: Could not open file: " << filename << endl;
@@ -215,9 +225,9 @@ bool loadGraph(const string& filename, vector<idx_t>& xadj, vector<idx_t>& adjnc
     }
 
     vector<Edge> edges;
-    map<idx_t, idx_t> vertex_map; // Maps original vertex IDs to 0-based indices
-    set<pair<idx_t, idx_t>> edge_set; // To detect duplicates (stores min(u,v), max(u,v))
-    idx_t max_vertex = 0;
+    map<int, int> vertex_map; // Maps original vertex IDs to 0-based indices
+    set<pair<int, int>> edge_set; // To detect duplicates (stores min(u,v), max(u,v))
+    int max_vertex = 0;
     string line;
     int line_count = 0;
 
@@ -228,8 +238,8 @@ bool loadGraph(const string& filename, vector<idx_t>& xadj, vector<idx_t>& adjnc
         if (line.empty() || line[0] == '#') continue;
 
         istringstream iss(line);
-        idx_t from, to;
-        idx_t weight = 1; // Default weight for unweighted graphs
+        int from, to;
+        int weight = 1; // Default weight for unweighted graphs
         if (!(iss >> from >> to)) {
             cerr << "Error: Invalid format in line " << line_count << ": " << line << endl;
             return false;
@@ -259,21 +269,21 @@ bool loadGraph(const string& filename, vector<idx_t>& xadj, vector<idx_t>& adjnc
     file.close();
 
     // Assign contiguous 0-based indices
-    nvtxs = 0;
+    num_vertices = 0;
     for (auto& [orig, new_idx] : vertex_map) {
-        new_idx = nvtxs++;
+        new_idx = num_vertices++;
     }
 
     // Initialize Graph
-    G = Graph(nvtxs);
+    G = Graph(num_vertices);
 
     // Process edges: map to 0-based, remove duplicates
     vector<Edge> processed_edges;
     for (const auto& e : edges) {
-        idx_t u = vertex_map[e.from];
-        idx_t v = vertex_map[e.to];
+        int u = vertex_map[e.from];
+        int v = vertex_map[e.to];
         // Use canonical edge representation (min(u,v), max(u,v))
-        pair<idx_t, idx_t> edge = {min(u, v), max(u, v)};
+        pair<int, int> edge = {min(u, v), max(u, v)};
         if (edge_set.insert(edge).second) {
             processed_edges.emplace_back(u, v, e.weight);
             processed_edges.emplace_back(v, u, e.weight); // Reverse edge for undirected graph
@@ -289,28 +299,28 @@ bool loadGraph(const string& filename, vector<idx_t>& xadj, vector<idx_t>& adjnc
 
     // Build CSR format
     xadj.push_back(0);
-    vector<idx_t> degree(nvtxs, 0);
+    vector<int> degree(num_vertices, 0);
     for (const auto& e : processed_edges) {
         degree[e.from]++;
         adjncy.push_back(e.to);
-        adjwgt.push_back(e.weight);
+        adj_weight.push_back(e.weight);
     }
 
     // Construct xadj
-    for (idx_t i = 0; i < nvtxs; ++i) {
+    for (int i = 0; i < num_vertices; ++i) {
         xadj.push_back(xadj.back() + degree[i]);
     }
 
     nedges = adjncy.size() / 2; // Each edge appears twice in adjncy
 
     // Validate CSR
-    if (xadj[nvtxs] != static_cast<idx_t>(adjncy.size())) {
-        cerr << "Error: CSR format invalid: xadj[" << nvtxs << "]=" << xadj[nvtxs] 
+    if (xadj[num_vertices] != static_cast<int>(adjncy.size())) {
+        cerr << "Error: CSR format invalid: xadj[" << num_vertices << "]=" << xadj[num_vertices] 
              << ", adjncy.size()=" << adjncy.size() << endl;
         return false;
     }
 
-    cout << "Loaded graph with " << nvtxs << " vertices and " << nedges << " edges" << endl;
+    cout << "Loaded graph with " << num_vertices << " vertices and " << nedges << " edges" << endl;
     return true;
 }
 
@@ -318,23 +328,23 @@ int main() {
     string filename = "../data/graph.txt";
 
     // Graph Variables
-    vector<idx_t> xadj, adjncy, adjwgt;
-    idx_t nvtxs = 0, nedges = 0;
+    vector<int> xadj, adjncy, adj_weight;
+    int num_vertices = 0, nedges = 0;
     Graph G(0); // Will be initialized in loadGraph
 
     // Load and preprocess graph
-    if (!loadGraph(filename, xadj, adjncy, adjwgt, nvtxs, nedges, G)) {
+    if (!loadGraph(filename, xadj, adjncy, adj_weight, num_vertices, nedges, G)) {
         return -1;
     }
 
     // Compute initial SSSP tree from source vertex 0 (0-based, corresponds to vertex 1 in graph.txt)
-    SSSPTree T(nvtxs);
+    SSSPTree T(num_vertices);
     sequentialSSSP(G, T, 0);
 
     // Print initial SSSP tree
     cout << "\nInitial SSSP Tree (source vertex 1):\n";
     cout << "Vertex\tDistance\tParent\n";
-    for (idx_t i = 0; i < nvtxs; ++i) {
+    for (int i = 0; i < num_vertices; ++i) {
         cout << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i])) 
              << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
     }
@@ -360,7 +370,7 @@ int main() {
     // Print updated SSSP tree
     cout << "\nUpdated SSSP Tree (source vertex 1):\n";
     cout << "Vertex\tDistance\tParent\n";
-    for (idx_t i = 0; i < nvtxs; ++i) {
+    for (int i = 0; i < num_vertices; ++i) {
         cout << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i])) 
              << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
     }
