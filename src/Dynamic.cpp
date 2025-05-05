@@ -228,6 +228,97 @@ bool loadGraph(const string &filename, vector<idx_t> &xadj, vector<idx_t> &adjnc
     return true;
 }
 
+// Loads edge changes from a file
+// Format: I/D <u> <v> [<weight>] (I for insertion, D for deletion, weight for insertions)
+vector<pair<pair<int, int>, int>> loadChanges(const string &filename, const Graph &G, int rank)
+{
+    vector<pair<pair<int, int>, int>> changes;
+    if (rank == 0) // Only rank 0 reads the file
+    {
+        ifstream file(filename);
+        if (!file.is_open())
+        {
+            cerr << "Error: Could not open changes file: " << filename << endl;
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+
+        string line;
+        int line_count = 0;
+        set<pair<int, int>> change_set; // Track edges to avoid duplicates
+
+        while (getline(file, line))
+        {
+            line_count++;
+            if (line.empty() || line[0] == '#')
+                continue;
+
+            istringstream iss(line);
+            char op;
+            int u, v, weight = -1; // Default -1 for deletions
+            if (!(iss >> op >> u >> v))
+            {
+                cerr << "Error: Invalid format in line " << line_count << ": " << line << endl;
+                MPI_Abort(MPI_COMM_WORLD, 1);
+            }
+            if (op == 'I' && !(iss >> weight))
+            {
+                cerr << "Error: Missing weight for insertion in line " << line_count << ": " << line << endl;
+                MPI_Abort(MPI_COMM_WORLD, 1);
+            }
+
+            // Convert 1-based to 0-based indices
+            u--;
+            v--;
+            if (u < 0 || u >= G.V || v < 0 || v >= G.V || u == v)
+            {
+                cerr << "Error: Invalid vertex index in line " << line_count
+                     << ": u=" << u + 1 << ", v=" << v + 1 << ", V=" << G.V << endl;
+                MPI_Abort(MPI_COMM_WORLD, 1);
+            }
+
+            // Normalize edge to avoid duplicates (u < v)
+            int u_norm = min(u, v);
+            int v_norm = max(u, v);
+            pair<int, int> edge = {u_norm, v_norm};
+
+            if (change_set.find(edge) != change_set.end())
+            {
+                cout << "Warning: Skipping duplicate change in line " << line_count
+                     << ": " << (op == 'I' ? "Insert" : "Delete") << " (" << u + 1 << ", " << v + 1 << ")" << endl;
+                continue;
+            }
+
+            bool exists = false;
+            for (const auto &e : G.adj[u])
+            {
+                if (e.first == v)
+                {
+                    exists = true;
+                    break;
+                }
+            }
+
+            if (op == 'D' && !exists)
+            {
+                cout << "Warning: Skipping deletion of non-existent edge in line " << line_count
+                     << ": (" << u + 1 << ", " << v + 1 << ")" << endl;
+                continue;
+            }
+            if (op == 'I' && exists)
+            {
+                cout << "Warning: Skipping insertion of existing edge in line " << line_count
+                     << ": (" << u + 1 << ", " << v + 1 << ")" << endl;
+                continue;
+            }
+
+            changes.push_back({{u, v}, (op == 'I' ? weight : -1)});
+            change_set.insert(edge);
+        }
+        file.close();
+    }
+    return changes;
+}
+
 // Partitions graph using METIS for load balancing across MPI processes
 // (Article: Graph Partitioning for Distributed Parallelism, Section 4, Page 4)
 void partitionGraph(vector<idx_t> &xadj, vector<idx_t> &adjncy,
@@ -251,61 +342,6 @@ void partitionGraph(vector<idx_t> &xadj, vector<idx_t> &adjncy,
         cout << "METIS succeeded. Edge cut: " << objval << endl;
 }
 
-// Generates random edge changes for testing dynamic updates
-// (Article: Dynamic Graph Changes, Section 4, Page 4)
-vector<pair<pair<int, int>, int>> generateChanges(const Graph &G, int num_changes, double insert_ratio, int rank)
-{
-    vector<pair<pair<int, int>, int>> changes;
-    if (rank == 0) // Only rank 0 generates changes
-    {
-        random_device rd;
-        mt19937 gen(rd()); // Seed only on rank 0
-        uniform_int_distribution<> vertex_dist(0, G.V - 1);
-        uniform_int_distribution<> weight_dist(1, 1); // Adjusted weight range for consistency
-        bernoulli_distribution insert_dist(insert_ratio);
-
-        // Generate exactly num_changes edge changes
-        for (int i = 0; i < num_changes; ++i)
-        {
-            int u = vertex_dist(gen);
-            int v = vertex_dist(gen);
-            while (u == v)
-                v = vertex_dist(gen);
-
-            bool exists = false;
-            for (const auto &edge : G.adj[u])
-            {
-                if (edge.first == v)
-                {
-                    exists = true;
-                    break;
-                }
-            }
-
-            if (insert_ratio == 0.0)
-            {
-                // Only generate deletion edges
-                if (exists)
-                {
-                    changes.push_back({{u, v}, -1}); // Deletion edge
-                }
-                else
-                {
-                    --i; // Retry to ensure exactly num_changes deletions
-                }
-            }
-            else
-            {
-                // Generate both insertions and deletions based on insert_ratio
-                int w = insert_dist(gen) ? weight_dist(gen) : (exists ? -1 : weight_dist(gen));
-                changes.push_back({{u, v}, w});
-            }
-        }
-    }
-    return changes;
-}
-
-///////////////////////////////////////////////////// schdule (dynamic)
 // Implements parallel dynamic SSSP update algorithm (Article: Algorithm 4 - Asynchronous Update of SSSP, Section 5.1, Page 6)
 // Extends shared-memory framework to distributed-memory using MPI and METIS partitioning
 void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>, int>> &changes,
@@ -320,16 +356,16 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
             local_vertices.push_back(v);
     }
 
-// Step 1: Process changed edges in parallel (Article: Algorithm 2 - Identify Affected Vertices, Section 4, Page 4)
-// Implements lines 4-20 of Algorithm 2, processing deletions and insertions
-#pragma omp parallel for
+    // Step 1: Process changed edges in parallel (Article: Algorithm 2 - Identify Affected Vertices, Section 4, Page 4)
+    // Implements lines 4-20 of Algorithm 2, processing deletions and insertions
+#pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < changes.size(); ++i)
     {
         int u = changes[i].first.first;
         int v = changes[i].first.second;
         int w = changes[i].second;
 
-// Update graph structure (protected by critical section for thread safety)
+        // Update graph structure (protected by critical section for thread safety)
 #pragma omp critical
         {
             if (w >= 0)
@@ -378,7 +414,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
                     T.dist[u] = INT_MAX;
                     T.parent[u] = -1;
                     T.affected_del[u] = true;
-                    T.affected[v] = true;
+                    T.affected[u] = true; // Mark the child vertex as affected
                 }
             }
         }
@@ -387,14 +423,16 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
     // Step 2: Update affected subgraphs iteratively (Article: Algorithm 4, lines 7-end, Section 5.1, Page 6)
     // Combines deletion phase (lines 7-19) and update phase (lines 20-end)
     bool global_change = true;
-    while (global_change)
-    { // Continue until no changes (Algorithm 4, line 4)
+    int iteration = 0;
+    const int max_iterations = 2 * V; // Bound iterations to prevent infinite loops
+    while (global_change && iteration < max_iterations)
+    { // Continue until no changes or max iterations reached
         global_change = false;
 
         // Deletion Phase: Process deletion-affected vertices (Algorithm 4, lines 7-19)
         // Disconnect children of affected vertices
         bool local_del_change = false;
-#pragma omp parallel for reduction(| : local_del_change)
+#pragma omp parallel for schedule(dynamic) reduction(| : local_del_change)
         for (size_t i = 0; i < local_vertices.size(); ++i)
         {
             int v = local_vertices[i];
@@ -413,7 +451,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
                         local_del_change = true; // Indicate change (Algorithm 4, line 15)
                     }
                 }
-                // NEW: Mark neighbors as affected to ensure they are re-evaluated (Algorithm 4, lines 38-41)
+                // Mark neighbors as affected to ensure they are re-evaluated (Algorithm 4, lines 38-41)
                 for (const auto &edge : G.adj[v])
                 {
                     T.affected[edge.first] = true;
@@ -425,7 +463,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
         // Replaces queue-based synchronization in Algorithm 4 with MPI
         vector<char> send_affected_del(V, 0), recv_affected_del(V, 0);
         vector<char> send_affected(V, 0), recv_affected(V, 0);
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic)
         for (int v = 0; v < V; ++v)
         {
             send_affected_del[v] = T.affected_del[v];
@@ -433,16 +471,16 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
         }
         MPI_Allreduce(send_affected_del.data(), recv_affected_del.data(), V, MPI_CHAR, MPI_LOR, MPI_COMM_WORLD);
         MPI_Allreduce(send_affected.data(), recv_affected.data(), V, MPI_CHAR, MPI_LOR, MPI_COMM_WORLD);
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic)
         for (int v = 0; v < V; ++v)
         {
             T.affected_del[v] = recv_affected_del[v];
             T.affected[v] = recv_affected[v];
         }
 
-        // Update Phase: Recompute distances for affected vertices (Algorithm 4, lines 20-end)
+        // Update Phase: Recompute distances for affected vertices (Article: Algorithm 4, lines 20-end)
         bool local_update_change = false;
-#pragma omp parallel for reduction(| : local_update_change)
+#pragma omp parallel for schedule(dynamic) reduction(| : local_update_change)
         for (size_t i = 0; i < local_vertices.size(); ++i)
         {
             int v = local_vertices[i];
@@ -481,7 +519,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
         // Synchronize distances and parents across processes (Article: Ensure Global Consistency, Section 4)
         vector<int> send_dist(V), recv_dist(V);
         vector<int> send_parent(V), recv_parent(V);
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic)
         for (int v = 0; v < V; ++v)
         {
             send_dist[v] = T.dist[v];
@@ -489,7 +527,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
         }
         MPI_Allreduce(send_dist.data(), recv_dist.data(), V, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         MPI_Allreduce(send_parent.data(), recv_parent.data(), V, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic)
         for (int v = 0; v < V; ++v)
         {
             T.dist[v] = recv_dist[v];
@@ -501,6 +539,25 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
         int global_change_int;
         MPI_Allreduce(&local_change_int, &global_change_int, 1, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
         global_change = global_change_int;
+
+        ++iteration;
+        // Debugging output to trace iterations (commented out)
+        /*
+        if (rank == 0) {
+            cout << "Rank " << rank << ": Iteration " << iteration << ", global_change=" << global_change << endl;
+            for (int v = 0; v < V; ++v) {
+                if (T.affected[v]) {
+                    cout << "Rank " << rank << ": Vertex " << v + 1 << " is affected" << endl;
+                }
+            }
+        }
+        */
+    }
+
+    // Warn if max iterations reached (potential non-convergence)
+    if (iteration >= max_iterations && rank == 0)
+    {
+        cout << "Warning: Reached maximum iterations (" << max_iterations << ") in parallelSSSPUpdate. Possible non-convergence." << endl;
     }
 }
 
@@ -513,13 +570,14 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    string filename = "graph.txt";
+    string graph_filename = "../data/graph.txt";
+    string changes_filename = "../data/update_small.txt";
     vector<idx_t> xadj, adjncy, adjwgt;
     idx_t nvtxs = 0, nedges = 0;
     Graph G(0);
 
     // Load and preprocess graph (Article: Graph Preprocessing, Section 5, Page 6)
-    if (!loadGraph(filename, xadj, adjncy, adjwgt, nvtxs, nedges, G, rank))
+    if (!loadGraph(graph_filename, xadj, adjncy, adjwgt, nvtxs, nedges, G, rank))
     {
         MPI_Finalize();
         return -1;
@@ -552,13 +610,15 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Generate edge changes for dynamic updates (Article: Dynamic Graph Changes, Section 4, Page 4)
-    int num_changes = 5;
-    double insert_ratio = 1;
-    auto changes = generateChanges(G, num_changes, insert_ratio, rank);
+    // Load edge changes from file
+    auto changes = loadChanges(changes_filename, G, rank);
+
+    // Broadcast number of changes to all processes
+    int num_changes = changes.size();
+    MPI_Bcast(&num_changes, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     // Gather all changes to all processes (Article: Distributed Change Propagation, Section 4)
-    // Broadcast changes from rank 0 to all processes (NEW GROK)
+    // Broadcast changes from rank 0 to all processes
     vector<int> change_buf(num_changes * 3);
     if (rank == 0)
     {
@@ -584,7 +644,7 @@ int main(int argc, char *argv[])
     // Print changes
     if (rank == 0)
     {
-        cout << "\nApplying " << changes.size() << " edge changes (insert_ratio=" << insert_ratio << "):\n";
+        cout << "\nApplying " << changes.size() << " edge changes:\n";
         for (const auto &change : changes)
         {
             int u = change.first.first + 1;
