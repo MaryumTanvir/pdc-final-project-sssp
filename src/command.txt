@@ -6,6 +6,8 @@ g++ -fopenmp Dynamic_new.cpp -I/usr/include -L/usr/lib/x86_64-linux-gnu -lmetis 
 mpic++ -fopenmp Dynamic.cpp -I/usr/include -L/usr/lib/x86_64-linux-gnu -lmetis -o dynamic
 mpirun -np 4 --oversubscribe ./dynamic
 
+g++ -fopenmp DynamicPaper.cpp -I/usr/include -L/usr/lib/x86_64-linux-gnu -o dynamicpaper
+./dynamicpaper
 
 Libraries (try both on ubuntu terminal and vs terminal)
 sudo apt-get install libmetis-dev
