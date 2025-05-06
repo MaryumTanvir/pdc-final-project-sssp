@@ -505,6 +505,9 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
 // Main
 int main(int argc, char *argv[])
 {
+<<<<<<< HEAD:src/DynamicPaper.cpp
+    string filename = "../data/large_input.txt";
+=======
     // Open output file
     out_file.open("results.txt");
     if (!out_file.is_open())
@@ -515,6 +518,7 @@ int main(int argc, char *argv[])
 
     string graph_filename = "graph.txt";
     string changes_filename = "update_small.txt";
+>>>>>>> 8cf873a1f19c37efe500098f2836c80d7872c5df:src/Dynamic_MP.cpp
     Graph G(0);
 
     // Load and preprocess graph (Graph Preprocessing)
