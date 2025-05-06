@@ -1,13 +1,13 @@
 Execution
 
-g++ -fopenmp Dynamic_new.cpp -I/usr/include -L/usr/lib/x86_64-linux-gnu -lmetis -o dynamic_sssp
-./dynamic_sssp
+mpic++ -fopenmp Dynamic_METIS.cpp -I/usr/include -L/usr/lib/x86_64-linux-gnu -lmetis -o dynamicmetis
+mpirun -np 4 --oversubscribe ./dynamicmetis
 
-mpic++ -fopenmp Dynamic.cpp -I/usr/include -L/usr/lib/x86_64-linux-gnu -lmetis -o dynamic
-mpirun -np 4 --oversubscribe ./dynamic
+g++ -fopenmp Dynamic_MP.cpp -I/usr/include -L/usr/lib/x86_64-linux-gnu -o dynamicmp
+./dynamicmp
 
-g++ -fopenmp DynamicPaper.cpp -I/usr/include -L/usr/lib/x86_64-linux-gnu -o dynamicpaper
-./dynamicpaper
+mpic++ -fopenmp Dynamic_MPI.cpp -I/usr/include -L/usr/lib/x86_64-linux-gnu -o dynamicmpi
+mpirun -np 4 ./dynamicmpi
 
 Libraries (try both on ubuntu terminal and vs terminal)
 sudo apt-get install libmetis-dev
