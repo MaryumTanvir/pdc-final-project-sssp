@@ -12,20 +12,33 @@
 
 using namespace std;
 
-// Structure to represent an edge (Section 2, Page 2: Graph representation)
+// Global output file stream
+ofstream out_file;
+
+// Macro to print to the output file
+#define PRINT(msg)                   \
+    do                               \
+    {                                \
+        if (out_file.is_open())      \
+        {                            \
+            out_file << msg << endl; \
+        }                            \
+    } while (0)
+
+// Structure to represent an edge
 struct Edge
 {
     int from, to, weight;
     Edge(int f, int t, int w) : from(f), to(t), weight(w) {}
 };
 
-// Graph representation using adjacency list (Section 2, Page 2: Graph representation)
+// Graph representation using adjacency list
 struct Graph
 {
     int V;                              // Number of vertices
     vector<vector<pair<int, int>>> adj; // Adjacency list: (neighbor, weight)
     Graph(int vertices) : V(vertices), adj(vertices) {}
-    // Add edge to the graph (undirected) (Section 4, Page 4: Edge Insertion)
+    // Add edge to the graph (undirected)
     void addEdge(int u, int v, int w)
     {
         if (u >= V || v >= V || u < 0 || v < 0)
@@ -36,7 +49,7 @@ struct Graph
         adj[u].push_back({v, w});
         adj[v].push_back({u, w}); // Undirected graph
     }
-    // Remove edge from the graph (undirected) (Section 4, Page 4: Edge Deletion)
+    // Remove edge from the graph (undirected)
     void removeEdge(int u, int v)
     {
         auto it_u = find_if(adj[u].begin(), adj[u].end(),
@@ -52,7 +65,7 @@ struct Graph
     }
 };
 
-// SSSP tree structure to store shortest path information (Section 2, Page 2: SSSP Tree)
+// SSSP tree structure to store shortest path information
 struct SSSPTree
 {
     vector<int> parent;
@@ -62,7 +75,7 @@ struct SSSPTree
     SSSPTree(int V) : parent(V, -1), dist(V, INT_MAX), affected(V, false), affected_del(V, false) {}
 };
 
-// Safe addition to prevent integer overflow in distance calculations (Section 4, Page 4: Safe Distance Updates)
+// Safe addition to prevent integer overflow in distance calculations (Safe Distance Updates)
 int safeAdd(int a, int b)
 {
     if (a == INT_MAX || b == INT_MAX)
@@ -72,8 +85,7 @@ int safeAdd(int a, int b)
     return a + b;
 };
 
-// Implements Dijkstra's algorithm for initial SSSP tree computation
-// (Section 2, Page 2: Sequential SSSP Initialization)
+// Implements Dijkstra's algorithm for initial SSSP tree computation (Sequential SSSP Initialization)
 void sequentialSSSP(const Graph &G, SSSPTree &T, int source)
 {
     T.dist[source] = 0;
@@ -106,7 +118,7 @@ void sequentialSSSP(const Graph &G, SSSPTree &T, int source)
 }
 
 // Loads graph from file and constructs adjacency list
-// (Section 5, Page 6: Graph Preprocessing for Dynamic Updates)
+// (Graph Preprocessing for Dynamic Updates)
 bool loadGraph(const string &filename, Graph &G)
 {
     ifstream file(filename);
@@ -184,66 +196,108 @@ bool loadGraph(const string &filename, Graph &G)
         }
     }
 
-    cout << "Loaded graph with " << nvtxs << " vertices and " << edge_set.size() << " edges" << endl;
+    stringstream ss;
+    ss << "Loaded graph with " << nvtxs << " vertices and " << edge_set.size() << " edges";
+    PRINT(ss.str());
     return true;
 }
 
-// Generates random edge changes for testing dynamic updates
-// (Section 4, Page 4: Dynamic Graph Changes)
-vector<pair<pair<int, int>, int>> generateChanges(const Graph &G, int num_changes, double insert_ratio)
+// Loads edge changes from a file
+// Format: I/D <u> <v> [<weight>] (I for insertion, D for deletion, weight for insertions)
+vector<pair<pair<int, int>, int>> loadChanges(const string &filename, const Graph &G)
 {
     vector<pair<pair<int, int>, int>> changes;
-    random_device rd;
-    mt19937 gen(rd());
-    uniform_int_distribution<> vertex_dist(0, G.V - 1);
-    uniform_int_distribution<> weight_dist(1, 1);
-    bernoulli_distribution insert_dist(insert_ratio);
-
-    for (int i = 0; i < num_changes; ++i)
+    ifstream file(filename);
+    if (!file.is_open())
     {
-        int u = vertex_dist(gen);
-        int v = vertex_dist(gen);
-        while (u == v)
-            v = vertex_dist(gen);
+        cerr << "Error: Could not open changes file: " << filename << endl;
+        exit(1);
+    }
+
+    string line;
+    int line_count = 0;
+    set<pair<int, int>> change_set; // Track edges to avoid duplicates
+
+    while (getline(file, line))
+    {
+        line_count++;
+        if (line.empty() || line[0] == '#')
+            continue;
+
+        istringstream iss(line);
+        char op;
+        int u, v, weight = -1; // Default -1 for deletions
+        if (!(iss >> op >> u >> v))
+        {
+            cerr << "Error: Invalid format in line " << line_count << ": " << line << endl;
+            exit(1);
+        }
+        if (op == 'I' && !(iss >> weight))
+        {
+            cerr << "Error: Missing weight for insertion in line " << line_count << ": " << line << endl;
+            exit(1);
+        }
+
+        // Convert 1-based to 0-based indices
+        u--;
+        v--;
+        if (u < 0 || u >= G.V || v < 0 || v >= G.V || u == v)
+        {
+            cerr << "Error: Invalid vertex index in line " << line_count
+                 << ": u=" << u + 1 << ", v=" << v + 1 << ", V=" << G.V << endl;
+            exit(1);
+        }
+
+        // Normalize edge to avoid duplicates (u < v)
+        int u_norm = min(u, v);
+        int v_norm = max(u, v);
+        pair<int, int> edge = {u_norm, v_norm};
+
+        if (change_set.find(edge) != change_set.end())
+        {
+            cout << "Warning: Skipping duplicate change in line " << line_count
+                 << ": " << (op == 'I' ? "Insert" : "Delete") << " (" << u + 1 << ", " << v + 1 << ")" << endl;
+            continue;
+        }
 
         bool exists = false;
-        for (const auto &edge : G.adj[u])
+        for (const auto &e : G.adj[u])
         {
-            if (edge.first == v)
+            if (e.first == v)
             {
                 exists = true;
                 break;
             }
         }
 
-        if (insert_ratio == 0.0)
+        if (op == 'D' && !exists)
         {
-            if (exists)
-            {
-                changes.push_back({{u, v}, -1});
-            }
-            else
-            {
-                --i;
-            }
+            cout << "Warning: Skipping deletion of non-existent edge in line " << line_count
+                 << ": (" << u + 1 << ", " << v + 1 << ")" << endl;
+            continue;
         }
-        else
+        if (op == 'I' && exists)
         {
-            int w = insert_dist(gen) ? weight_dist(gen) : (exists ? -1 : weight_dist(gen));
-            changes.push_back({{u, v}, w});
+            cout << "Warning: Skipping insertion of existing edge in line " << line_count
+                 << ": (" << u + 1 << ", " << v + 1 << ")" << endl;
+            continue;
         }
+
+        changes.push_back({{u, v}, (op == 'I' ? weight : -1)});
+        change_set.insert(edge);
     }
+    file.close();
     return changes;
 }
 
-// Implements parallel dynamic SSSP update algorithm (Algorithm 4, Section 5.1, Page 6)
-// Uses shared-memory parallelism with OpenMP, batch processing, and redundant computations to avoid locks
+// Implements parallel dynamic SSSP update algorithm (Algorithm 4)
+// shared-memory parallelism with OpenMP, batch processing, and redundant computations to avoid locks
 void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>, int>> &changes, int async_level, int batch_size)
 {
     int V = G.V;
     vector<pair<pair<int, int>, int>> deletions, insertions;
 
-    // Separate deletions and insertions (Section 5.1, Page 6: Process deletions before insertions)
+    // Separate deletions and insertions
     for (const auto &change : changes)
     {
         if (change.second < 0)
@@ -252,7 +306,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
             insertions.push_back(change);
     }
 
-    // Process changes in batches (Section 5.1, Page 7: Processing Batches of Changes)
+    // Process changes in batches (Batch Processing of Changes)
     auto processBatch = [&](const vector<pair<pair<int, int>, int>> &batch, bool is_deletion)
     {
         // Step 1: Apply graph updates sequentially to avoid concurrent modifications
@@ -263,16 +317,16 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
             int w = change.second;
             if (w >= 0)
             {
-                G.addEdge(u, v, w); // Algorithm 2, line 20
+                G.addEdge(u, v, w); // Algorithm 2
             }
             else
             {
-                G.removeEdge(u, v); // Algorithm 2, line 10
+                G.removeEdge(u, v); // Algorithm 2
             }
         }
 
-        // Step 2: Identify affected vertices in parallel without locks (Algorithm 2, Section 4, Page 4)
-        // Allow redundant computations as per Page 934
+        // Step 2: Identify affected vertices in parallel without locks (Algorithm 2)
+        // Allow redundant computations
 #pragma omp parallel for schedule(dynamic)
         for (size_t i = 0; i < batch.size(); ++i)
         {
@@ -282,7 +336,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
 
             if (w >= 0)
             {
-                // Edge insertion (Algorithm 2, lines 12-19)
+                // Edge insertion
                 int x = (T.dist[u] > T.dist[v]) ? v : u;
                 int y = (T.dist[u] > T.dist[v]) ? u : v;
                 int new_dist = safeAdd(T.dist[x], w);
@@ -291,12 +345,12 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
                     // Allow redundant updates; correctness ensured by iterative convergence
                     T.dist[y] = new_dist;
                     T.parent[y] = x;
-                    T.affected[y] = true; // Algorithm 2, line 19
+                    T.affected[y] = true;
                 }
             }
             else
             {
-                // Edge deletion (Algorithm 2, lines 5-9)
+                // Edge deletion
                 if (T.parent[v] == u)
                 {
                     // Allow redundant updates
@@ -335,13 +389,13 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
         processBatch(batch, false);
     }
 
-    // Step 3: Update affected subgraphs (Algorithm 4, Section 5.1, Page 6)
+    // Step 3: Update affected subgraphs (Algorithm 4)
     bool global_change = true;
     while (global_change)
     {
         global_change = false;
 
-        // Deletion Phase (Algorithm 4, lines 7-19)
+        // Deletion Phase (Algorithm 4)
         bool local_del_change = false;
 #pragma omp parallel for schedule(dynamic) reduction(| : local_del_change)
         for (int v = 0; v < V; ++v)
@@ -353,7 +407,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
                 Q.push(v);
                 int level = 0;
 
-                // Disconnect children up to async_level (Section 5.1, Page 6: Asynchronous Updates)
+                // Disconnect children up to async_level (Asynchronous Updates)
                 while (!Q.empty() && level <= async_level)
                 {
                     int x = Q.front();
@@ -375,7 +429,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
                     level++;
                 }
 
-                // Mark neighbors as affected (Algorithm 4, lines 38-41)
+                // Mark neighbors as affected (Algorithm 4)
                 for (const auto &edge : G.adj[v])
                 {
                     T.affected[edge.first] = true;
@@ -383,7 +437,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
             }
         }
 
-        // Update Phase (Algorithm 4, lines 20-end)
+        // Update Phase (Algorithm 4)
         bool local_update_change = false;
 #pragma omp parallel for schedule(dynamic) reduction(| : local_update_change)
         for (int v = 0; v < V; ++v)
@@ -400,7 +454,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
                     int x = Q.front();
                     Q.pop();
 
-                    // Check neighbors for shorter paths (Algorithm 4, lines 32-35)
+                    // Check neighbors for shorter paths (Algorithm 4)
                     int min_dist = T.dist[x];
                     int best_parent = T.parent[x];
                     bool updated = false;
@@ -426,7 +480,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
                         T.affected[x] = true;
                         local_update_change = true;
 
-                        // Mark neighbors as affected (Algorithm 4, lines 38-41)
+                        // Mark neighbors as affected (Algorithm 4)
                         for (const auto &edge : G.adj[x])
                         {
                             T.affected[edge.first] = true;
@@ -444,64 +498,108 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
         global_change = local_del_change || local_update_change;
     }
 
-    // Ensure correctness by iterative convergence (Section 4, Page 4: Avoiding Cycle Formation)
+    // Ensure correctness by iterative convergence (Avoiding Cycle Formation)
     // The iterative updates ensure distances converge to shortest paths, preventing cycles.
 }
 
-// Main function to orchestrate parallel SSSP computation
+// Main
 int main(int argc, char *argv[])
 {
-    string filename = "graph.txt";
-    Graph G(0);
-
-    // Load and preprocess graph (Section 5, Page 6: Graph Preprocessing)
-    if (!loadGraph(filename, G))
+    // Open output file
+    out_file.open("results.txt");
+    if (!out_file.is_open())
     {
+        cout << "Error: Could not open output file: results.txt" << endl;
         return -1;
     }
 
-    // Compute initial SSSP tree (Section 2, Page 2: Sequential SSSP Initialization)
+    string graph_filename = "graph.txt";
+    string changes_filename = "update_small.txt";
+    Graph G(0);
+
+    // Load and preprocess graph (Graph Preprocessing)
+    if (!loadGraph(graph_filename, G))
+    {
+        if (out_file.is_open())
+            out_file.close();
+        return -1;
+    }
+
+    // Compute initial SSSP tree (Sequential SSSP Initialization)
     SSSPTree T(G.V);
     sequentialSSSP(G, T, 0);
 
-    // Print initial SSSP tree
-    cout << "\nInitial SSSP Tree (source vertex 1):\n";
-    cout << "Vertex\tDistance\tParent\n";
-    for (int i = 0; i < G.V; ++i)
+    // Output initial SSSP tree
+    // Terminal: First 10 vertices
+    stringstream ss_term;
+    ss_term << "\nInitial SSSP Tree (source vertex 1, first 10 vertices):\n"
+            << "Vertex\tDistance\tParent\n";
+    for (int i = 0; i < min(10, G.V); ++i)
     {
-        cout << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i]))
-             << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
+        ss_term << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i]))
+                << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
+    }
+    cout << ss_term.str() << endl; // Terminal only
+
+    // File: All vertices
+    if (out_file.is_open())
+    {
+        out_file << "\nInitial SSSP Tree (source vertex 1, all vertices):\n"
+                 << "Vertex\tDistance\tParent\n";
+        for (int i = 0; i < G.V; ++i)
+        {
+            out_file << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i]))
+                     << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
+        }
     }
 
-    // Generate edge changes (Section 4, Page 4: Dynamic Graph Changes)
-    int num_changes = 5;
-    double insert_ratio = 0.0;
-    auto changes = generateChanges(G, num_changes, insert_ratio);
+    // Load updates from file
+    auto changes = loadChanges(changes_filename, G);
 
     // Print changes
-    cout << "\nApplying " << changes.size() << " edge changes (insert_ratio=" << insert_ratio << "):\n";
+    stringstream ss;
+    ss << "\nApplying " << changes.size() << " edge changes:\n";
     for (const auto &change : changes)
     {
         int u = change.first.first + 1;
         int v = change.first.second + 1;
         int w = change.second;
-        cout << (w >= 0 ? "Insert" : "Delete") << " edge: (" << u << ", " << v << ") "
-             << (w >= 0 ? "weight=" + to_string(w) : "") << "\n";
+        ss << (w >= 0 ? "Insert" : "Delete") << " edge: (" << u << ", " << v << ") "
+           << (w >= 0 ? "weight=" + to_string(w) : "") << "\n";
     }
+    PRINT(ss.str());
 
-    // Update SSSP tree with dynamic changes (Algorithm 4, Section 5.1, Page 6)
-    int async_level = 2; // Section 5.1, Page 6: Asynchronous Updates
-    int batch_size = 2;  // Section 5.1, Page 7: Processing Batches of Changes
+    // Update SSSP tree with dynamic changes (Algorithm 4)
+    int async_level = 2; // Asynchronous Updates
+    int batch_size = 2;  // Processing Batches of Changes
     parallelSSSPUpdate(G, T, changes, async_level, batch_size);
 
-    // Print updated SSSP tree
-    cout << "\nUpdated SSSP Tree (source vertex 1):\n";
-    cout << "Vertex\tDistance\tParent\n";
-    for (int i = 0; i < G.V; ++i)
+    // Output updated SSSP tree
+    // Terminal: First 10 vertices
+    stringstream ss_term_updated;
+    ss_term_updated << "\nUpdated SSSP Tree (source vertex 1, first 10 vertices):\n"
+                    << "Vertex\tDistance\tParent\n";
+    for (int i = 0; i < min(10, G.V); ++i)
     {
-        cout << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i]))
-             << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
+        ss_term_updated << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i]))
+                        << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
     }
+    cout << ss_term_updated.str() << endl; // Terminal only
+
+    // File: All vertices
+    if (out_file.is_open())
+    {
+        out_file << "\nUpdated SSSP Tree (source vertex 1, all vertices):\n"
+                 << "Vertex\tDistance\tParent\n";
+        for (int i = 0; i < G.V; ++i)
+        {
+            out_file << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i]))
+                     << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
+        }
+    }
+
+    if (out_file.is_open())
+        out_file.close();
 
     return 0;
 }

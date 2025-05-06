@@ -16,13 +16,17 @@ using namespace std;
 ofstream out_file;
 
 // Macro to print to the output file (rank 0 only)
-#define PRINT(rank, msg) do { \
-    if (rank == 0) { \
-        if (out_file.is_open()) { \
-            out_file << msg << endl; \
-        } \
-    } \
-} while (0)
+#define PRINT(rank, msg)                 \
+    do                                   \
+    {                                    \
+        if (rank == 0)                   \
+        {                                \
+            if (out_file.is_open())      \
+            {                            \
+                out_file << msg << endl; \
+            }                            \
+        }                                \
+    } while (0)
 
 // Structure to represent an edge
 struct Edge
@@ -253,7 +257,8 @@ vector<pair<pair<int, int>, int>> loadChanges(const string &filename, const Grap
                 MPI_Abort(MPI_COMM_WORLD, 1);
             }
 
-            u--; v--;
+            u--;
+            v--;
             if (u < 0 || u >= G.V || v < 0 || v >= G.V || u == v)
             {
                 cerr << "Error: Invalid vertex index in line " << line_count
@@ -645,7 +650,7 @@ int main(int argc, char *argv[])
 
     if (rank == 0 && out_file.is_open())
         out_file.close();
-    
+
     MPI_Finalize();
     return 0;
 }
