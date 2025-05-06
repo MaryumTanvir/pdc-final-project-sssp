@@ -380,6 +380,5 @@ int main() {
              << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
     }
 
-
     return 0;
 }
