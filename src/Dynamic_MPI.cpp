@@ -1,5 +1,4 @@
 #include <mpi.h>
-#include <metis.h>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -9,11 +8,7 @@
 #include <algorithm>
 #include <queue>
 #include <climits>
-#include <random>
 #include <omp.h>
-#include <cstdio>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 using namespace std;
 
@@ -32,8 +27,8 @@ ofstream out_file;
 // Structure to represent an edge
 struct Edge
 {
-    idx_t from, to, weight;
-    Edge(idx_t f, idx_t t, idx_t w) : from(f), to(t), weight(w) {}
+    int from, to, weight;
+    Edge(int f, int t, int w) : from(f), to(t), weight(w) {}
 };
 
 // Graph representation using adjacency list
@@ -43,11 +38,9 @@ struct Graph
     vector<vector<pair<int, int>>> adj; // Adjacency list: (neighbor, weight)
     Graph(int vertices, int expected_edges) : V(vertices), adj(vertices)
     {
-        // Pre-allocate adjacency lists (avg. degree ~3 + buffer)
         for (auto &list : adj)
             list.reserve(10);
     }
-    // Add edge to the graph (undirected)
     void addEdge(int u, int v, int w)
     {
         if (u >= V || v >= V || u < 0 || v < 0)
@@ -58,9 +51,8 @@ struct Graph
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
         adj[u].push_back({v, w});
-        adj[v].push_back({u, w}); // Undirected graph
+        adj[v].push_back({u, w});
     }
-    // Remove edge from the graph (undirected)
     void removeEdge(int u, int v)
     {
         auto it_u = find_if(adj[u].begin(), adj[u].end(),
@@ -76,7 +68,7 @@ struct Graph
     }
 };
 
-// SSSP tree structure to store shortest path information
+// SSSP tree structure
 struct SSSPTree
 {
     vector<int> parent;
@@ -85,7 +77,6 @@ struct SSSPTree
     vector<bool> affected_del;
     SSSPTree(int V) : parent(V, -1), dist(V, INT_MAX), affected(V, false), affected_del(V, false)
     {
-        // Pre-allocate to avoid resizing
         parent.reserve(V);
         dist.reserve(V);
         affected.reserve(V);
@@ -93,7 +84,7 @@ struct SSSPTree
     }
 };
 
-// Safe addition to prevent integer overflow in distance calculations
+// Safe addition to prevent overflow
 int safeAdd(int a, int b)
 {
     if (a == INT_MAX || b == INT_MAX)
@@ -103,7 +94,7 @@ int safeAdd(int a, int b)
     return a + b;
 };
 
-// Implements Dijkstra's algorithm for initial SSSP tree computation
+// Sequential Dijkstra's algorithm
 void sequentialSSSP(const Graph &G, SSSPTree &T, int source)
 {
     T.dist[source] = 0;
@@ -134,9 +125,8 @@ void sequentialSSSP(const Graph &G, SSSPTree &T, int source)
     }
 }
 
-// Loads graph from file and constructs adjacency list and METIS CSR format
-bool loadGraph(const string &filename, vector<idx_t> &xadj, vector<idx_t> &adjncy,
-               vector<idx_t> &adjwgt, idx_t &nvtxs, idx_t &nedges, Graph &G, int rank)
+// Loads graph from file
+bool loadGraph(const string &filename, int &nvtxs, int &nedges, Graph &G, int rank)
 {
     ifstream file(filename);
     if (!file.is_open())
@@ -149,9 +139,9 @@ bool loadGraph(const string &filename, vector<idx_t> &xadj, vector<idx_t> &adjnc
 
     vector<Edge> edges;
     edges.reserve(6000000);
-    map<idx_t, idx_t> vertex_map;
-    set<pair<idx_t, idx_t>> edge_set;
-    idx_t max_vertex = 0;
+    map<int, int> vertex_map;
+    set<pair<int, int>> edge_set;
+    int max_vertex = 0;
     string line;
     int line_count = 0;
 
@@ -161,8 +151,7 @@ bool loadGraph(const string &filename, vector<idx_t> &xadj, vector<idx_t> &adjnc
         if (line.empty() || line[0] == '#')
             continue;
 
-        idx_t from, to;
-        idx_t weight = 1;
+        int from, to, weight = 1;
         if (sscanf(line.c_str(), "%d %d %d", &from, &to, &weight) < 2)
         {
             stringstream ss;
@@ -202,18 +191,16 @@ bool loadGraph(const string &filename, vector<idx_t> &xadj, vector<idx_t> &adjnc
     }
 
     G = Graph(nvtxs, 6000000);
-    vector<Edge> processed_edges;
-    processed_edges.reserve(12000000);
+    nedges = 0;
     for (const auto &e : edges)
     {
-        idx_t u = vertex_map[e.from];
-        idx_t v = vertex_map[e.to];
-        pair<idx_t, idx_t> edge = {min(u, v), max(u, v)};
+        int u = vertex_map[e.from];
+        int v = vertex_map[e.to];
+        pair<int, int> edge = {min(u, v), max(u, v)};
         if (edge_set.insert(edge).second)
         {
-            processed_edges.emplace_back(u, v, e.weight);
-            processed_edges.emplace_back(v, u, e.weight);
             G.addEdge(u, v, e.weight);
+            nedges++;
         }
         else
         {
@@ -223,50 +210,17 @@ bool loadGraph(const string &filename, vector<idx_t> &xadj, vector<idx_t> &adjnc
         }
     }
 
-    sort(processed_edges.begin(), processed_edges.end(),
-         [](const Edge &a, const Edge &b)
-         { return a.from < b.from; });
-
-    xadj.reserve(nvtxs + 1);
-    adjncy.reserve(12000000);
-    adjwgt.reserve(12000000);
-    xadj.push_back(0);
-    vector<idx_t> degree(nvtxs, 0);
-    for (const auto &e : processed_edges)
-    {
-        degree[e.from]++;
-        adjncy.push_back(e.to);
-        adjwgt.push_back(e.weight);
-    }
-
-    for (idx_t i = 0; i < nvtxs; ++i)
-    {
-        xadj.push_back(xadj.back() + degree[i]);
-    }
-
-    nedges = adjncy.size() / 2;
-
-    if (xadj[nvtxs] != static_cast<idx_t>(adjncy.size()))
-    {
-        stringstream ss;
-        ss << "Error: CSR format invalid: xadj[" << nvtxs << "]=" << xadj[nvtxs]
-           << ", adjncy.size()=" << adjncy.size();
-        PRINT(rank, ss.str());
-        return false;
-    }
-
     stringstream ss;
     ss << "Loaded graph with " << nvtxs << " vertices and " << nedges << " edges";
     PRINT(rank, ss.str());
     return true;
 }
 
-// Loads edge changes from a file
-// Format: I/D <u> <v> [<weight>] (I for insertion, D for deletion, weight for insertions)
+// Loads edge changes
 vector<pair<pair<int, int>, int>> loadChanges(const string &filename, const Graph &G, int rank)
 {
     vector<pair<pair<int, int>, int>> changes;
-    if (rank == 0) // Only rank 0 reads the file
+    if (rank == 0)
     {
         ifstream file(filename);
         if (!file.is_open())
@@ -277,7 +231,7 @@ vector<pair<pair<int, int>, int>> loadChanges(const string &filename, const Grap
 
         string line;
         int line_count = 0;
-        set<pair<int, int>> change_set; // Track edges to avoid duplicates
+        set<pair<int, int>> change_set;
 
         while (getline(file, line))
         {
@@ -287,7 +241,7 @@ vector<pair<pair<int, int>, int>> loadChanges(const string &filename, const Grap
 
             istringstream iss(line);
             char op;
-            int u, v, weight = -1; // Default -1 for deletions
+            int u, v, weight = -1;
             if (!(iss >> op >> u >> v))
             {
                 cerr << "Error: Invalid format in line " << line_count << ": " << line << endl;
@@ -299,9 +253,7 @@ vector<pair<pair<int, int>, int>> loadChanges(const string &filename, const Grap
                 MPI_Abort(MPI_COMM_WORLD, 1);
             }
 
-            // Convert 1-based to 0-based indices
-            u--;
-            v--;
+            u--; v--;
             if (u < 0 || u >= G.V || v < 0 || v >= G.V || u == v)
             {
                 cerr << "Error: Invalid vertex index in line " << line_count
@@ -309,11 +261,7 @@ vector<pair<pair<int, int>, int>> loadChanges(const string &filename, const Grap
                 MPI_Abort(MPI_COMM_WORLD, 1);
             }
 
-            // Normalize edge to avoid duplicates (u < v)
-            int u_norm = min(u, v);
-            int v_norm = max(u, v);
-            pair<int, int> edge = {u_norm, v_norm};
-
+            pair<int, int> edge = {min(u, v), max(u, v)};
             if (change_set.find(edge) != change_set.end())
             {
                 cout << "Warning: Skipping duplicate change in line " << line_count
@@ -352,143 +300,16 @@ vector<pair<pair<int, int>, int>> loadChanges(const string &filename, const Grap
     return changes;
 }
 
-// Loads edge changes from a file
-vector<pair<pair<int, int>, int>> loadChanges(const string &filename, const Graph &G, int rank)
-{
-    vector<pair<pair<int, int>, int>> changes;
-    if (rank == 0)
-    {
-        ifstream file(filename);
-        if (!file.is_open())
-        {
-            stringstream ss;
-            ss << "Error: Could not open changes file: " << filename;
-            PRINT(rank, ss.str());
-            MPI_Abort(MPI_COMM_WORLD, 1);
-        }
-
-        string line;
-        int line_count = 0;
-        set<pair<int, int>> change_set;
-        changes.reserve(1000000);
-
-        while (getline(file, line))
-        {
-            line_count++;
-            if (line.empty() || line[0] == '#')
-                continue;
-
-            char op;
-            int u, v, weight = -1;
-            if (sscanf(line.c_str(), "%c %d %d %d", &op, &u, &v, &weight) < 3)
-            {
-                stringstream ss;
-                ss << "Error: Invalid format in line " << line_count << ": " << line;
-                PRINT(rank, ss.str());
-                MPI_Abort(MPI_COMM_WORLD, 1);
-            }
-            if (op == 'I' && weight == -1)
-            {
-                stringstream ss;
-                ss << "Error: Missing weight for insertion in line " << line_count << ": " << line;
-                PRINT(rank, ss.str());
-                MPI_Abort(MPI_COMM_WORLD, 1);
-            }
-
-            u--;
-            v--;
-            if (u < 0 || u >= G.V || v < 0 || v >= G.V || u == v)
-            {
-                stringstream ss;
-                ss << "Error: Invalid vertex index in line " << line_count
-                   << ": u=" << u + 1 << ", v=" << v + 1 << ", V=" << G.V;
-                PRINT(rank, ss.str());
-                MPI_Abort(MPI_COMM_WORLD, 1);
-            }
-
-            int u_norm = min(u, v);
-            int v_norm = max(u, v);
-            pair<int, int> edge = {u_norm, v_norm};
-
-            if (change_set.find(edge) != change_set.end())
-            {
-                stringstream ss;
-                ss << "Warning: Skipping duplicate change in line " << line_count
-                   << ": " << (op == 'I' ? "Insert" : "Delete") << " (" << u + 1 << ", " << v + 1 << ")";
-                PRINT(rank, ss.str());
-                continue;
-            }
-
-            bool exists = false;
-            for (const auto &e : G.adj[u])
-            {
-                if (e.first == v)
-                {
-                    exists = true;
-                    break;
-                }
-            }
-
-            if (op == 'D' && !exists)
-            {
-                stringstream ss;
-                ss << "Warning: Skipping deletion of non-existent edge in line " << line_count
-                   << ": (" << u + 1 << ", " << v + 1 << ")";
-                PRINT(rank, ss.str());
-                continue;
-            }
-            if (op == 'I' && exists)
-            {
-                stringstream ss;
-                ss << "Warning: Skipping insertion of existing edge in line " << line_count
-                   << ": (" << u + 1 << ", " << v + 1 << ")";
-                PRINT(rank, ss.str());
-                continue;
-            }
-
-            changes.push_back({{u, v}, (op == 'I' ? weight : -1)});
-            change_set.insert(edge);
-        }
-        file.close();
-    }
-    return changes;
-}
-
-// Partitions graph using METIS
-void partitionGraph(vector<idx_t> &xadj, vector<idx_t> &adjncy,
-                    vector<idx_t> &adjwgt, int nparts, vector<int> &parts, int rank)
-{
-    idx_t nvtxs = xadj.size() - 1;
-    idx_t ncon = 1;
-    idx_t objval;
-    vector<idx_t> part_idx(nvtxs);
-    parts.reserve(nvtxs);
-    int ret = METIS_PartGraphKway(&nvtxs, &ncon, xadj.data(), adjncy.data(), NULL, NULL,
-                                  adjwgt.data(), &nparts, NULL, NULL, NULL, &objval, part_idx.data());
-    if (ret != METIS_OK)
-    {
-        stringstream ss;
-        ss << "METIS failed with code: " << ret;
-        PRINT(rank, ss.str());
-        MPI_Abort(MPI_COMM_WORLD, 1);
-    }
-    parts.assign(part_idx.begin(), part_idx.end());
-    stringstream ss;
-    ss << "METIS succeeded. Edge cut: " << objval;
-    PRINT(rank, ss.str());
-}
-
-// Implements parallel dynamic SSSP update algorithm
+// Parallel SSSP update without critical sections
 void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>, int>> &changes,
-                        const vector<int> &part, int rank, int size)
+                        int rank, int size)
 {
     int V = G.V;
     vector<int> local_vertices;
     local_vertices.reserve(V / size);
-    for (int v = 0; v < V; ++v)
+    for (int v = rank; v < V; v += size)
     {
-        if (part[v] == rank)
-            local_vertices.push_back(v);
+        local_vertices.push_back(v);
     }
 
 #pragma omp parallel for schedule(dynamic)
@@ -498,16 +319,13 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
         int v = changes[i].first.second;
         int w = changes[i].second;
 
-#pragma omp critical
+        if (w >= 0)
         {
-            if (w >= 0)
-            {
-                G.addEdge(u, v, w);
-            }
-            else
-            {
-                G.removeEdge(u, v);
-            }
+            G.addEdge(u, v, w);
+        }
+        else
+        {
+            G.removeEdge(u, v);
         }
 
         if (w >= 0)
@@ -517,48 +335,38 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
             int new_dist = safeAdd(T.dist[x], w);
             if (T.dist[y] > new_dist)
             {
-#pragma omp critical
-                {
-                    T.dist[y] = new_dist;
-                    T.parent[y] = x;
-                    T.affected[y] = true;
-                }
+                T.dist[y] = new_dist;
+                T.parent[y] = x;
+                T.affected[y] = true;
             }
         }
         else
         {
             if (T.parent[v] == u)
             {
-#pragma omp critical
-                {
-                    T.dist[v] = INT_MAX;
-                    T.parent[v] = -1;
-                    T.affected_del[v] = true;
-                    T.affected[v] = true;
-                }
+                T.dist[v] = INT_MAX;
+                T.parent[v] = -1;
+                T.affected_del[v] = true;
+                T.affected[v] = true;
             }
             else if (T.parent[u] == v)
             {
-#pragma omp critical
-                {
-                    T.dist[u] = INT_MAX;
-                    T.parent[u] = -1;
-                    T.affected_del[u] = true;
-                    T.affected[u] = true; // Mark the child vertex as affected
-                }
+                T.dist[u] = INT_MAX;
+                T.parent[u] = -1;
+                T.affected_del[u] = true;
+                T.affected[u] = true;
             }
         }
     }
 
     bool global_change = true;
     int iteration = 0;
-    const int max_iterations = 1000; // Increased for small graph with many changes
+    const int max_iterations = min(2 * V, 1000);
     while (global_change && iteration < max_iterations)
     {
         global_change = false;
 
         bool local_del_change = false;
-
 #pragma omp parallel for schedule(dynamic) reduction(| : local_del_change)
         for (size_t i = 0; i < local_vertices.size(); ++i)
         {
@@ -603,9 +411,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
             T.affected[v] = recv_affected[v];
         }
 
-        // Update Phase: Recompute distances for affected vertices (Article: Algorithm 4, lines 20-end)
         bool local_update_change = false;
-
 #pragma omp parallel for schedule(dynamic) reduction(| : local_update_change)
         for (size_t i = 0; i < local_vertices.size(); ++i)
         {
@@ -670,7 +476,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
     if (iteration >= max_iterations && rank == 0)
     {
         stringstream ss;
-        ss << "Warning: Reached maximum iterations (" << max_iterations << ") in parallelSSSPUpdate. Possible non-convergence.";
+        ss << "Warning: Reached maximum iterations (" << max_iterations << "). Possible non-convergence.";
         PRINT(rank, ss.str());
     }
 }
@@ -683,10 +489,9 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    // Create results directory and open output file (rank 0 only)
+    cout << "Rank: " << rank << endl;
     if (rank == 0)
     {
-        mkdir("../results", 0755); // Create ../results directory (POSIX, Linux)
         out_file.open("../results/results.txt");
         if (!out_file.is_open())
         {
@@ -697,20 +502,16 @@ int main(int argc, char *argv[])
 
     string graph_filename = "../data/graph.txt";
     string changes_filename = "../data/update_small.txt";
-    vector<idx_t> xadj, adjncy, adjwgt;
-    idx_t nvtxs = 0, nedges = 0;
+    int nvtxs = 0, nedges = 0;
     Graph G(0, 0);
 
-    if (!loadGraph(graph_filename, xadj, adjncy, adjwgt, nvtxs, nedges, G, rank))
+    if (!loadGraph(graph_filename, nvtxs, nedges, G, rank))
     {
         if (rank == 0 && out_file.is_open())
             out_file.close();
         MPI_Finalize();
         return -1;
     }
-
-    vector<int> part(nvtxs);
-    partitionGraph(xadj, adjncy, adjwgt, size, part, rank);
 
     SSSPTree T(nvtxs);
     if (rank == 0)
@@ -721,26 +522,23 @@ int main(int argc, char *argv[])
     MPI_Bcast(T.dist.data(), nvtxs, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(T.parent.data(), nvtxs, MPI_INT, 0, MPI_COMM_WORLD);
 
-    // Output initial SSSP tree
     if (rank == 0)
     {
-        // Terminal: First 10 vertices
         stringstream ss_term;
         ss_term << "\nInitial SSSP Tree (source vertex 1, first 10 vertices):\n"
                 << "Vertex\tDistance\tParent\n";
-        for (idx_t i = 0; i < min<idx_t>(10, nvtxs); ++i)
+        for (int i = 0; i < min(10, nvtxs); ++i)
         {
             ss_term << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i]))
                     << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
         }
-        cout << ss_term.str() << endl; // Terminal only
+        cout << ss_term.str() << endl;
 
-        // File: All vertices
         if (out_file.is_open())
         {
             out_file << "\nInitial SSSP Tree (source vertex 1, all vertices):\n"
                      << "Vertex\tDistance\tParent\n";
-            for (idx_t i = 0; i < nvtxs; ++i)
+            for (int i = 0; i < nvtxs; ++i)
             {
                 out_file << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i]))
                          << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
@@ -790,28 +588,25 @@ int main(int argc, char *argv[])
         PRINT(rank, ss.str());
     }
 
-    parallelSSSPUpdate(G, T, changes, part, rank, size);
+    parallelSSSPUpdate(G, T, changes, rank, size);
 
-    // Output updated SSSP tree
     if (rank == 0)
     {
-        // Terminal: First 10 vertices
         stringstream ss_term;
         ss_term << "\nUpdated SSSP Tree (source vertex 1, first 10 vertices):\n"
                 << "Vertex\tDistance\tParent\n";
-        for (idx_t i = 0; i < min<idx_t>(10, nvtxs); ++i)
+        for (int i = 0; i < min(10, nvtxs); ++i)
         {
             ss_term << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i]))
                     << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
         }
-        cout << ss_term.str() << endl; // Terminal only
+        cout << ss_term.str() << endl;
 
-        // File: All vertices
         if (out_file.is_open())
         {
             out_file << "\nUpdated SSSP Tree (source vertex 1, all vertices):\n"
                      << "Vertex\tDistance\tParent\n";
-            for (idx_t i = 0; i < nvtxs; ++i)
+            for (int i = 0; i < nvtxs; ++i)
             {
                 out_file << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i]))
                          << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
@@ -821,6 +616,7 @@ int main(int argc, char *argv[])
 
     if (rank == 0 && out_file.is_open())
         out_file.close();
+    
     MPI_Finalize();
     return 0;
 }
