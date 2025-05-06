@@ -451,7 +451,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
 // Main function to orchestrate parallel SSSP computation
 int main(int argc, char *argv[])
 {
-    string filename = "graph.txt";
+    string filename = "../data/large_input.txt";
     Graph G(0);
 
     // Load and preprocess graph (Section 5, Page 6: Graph Preprocessing)
