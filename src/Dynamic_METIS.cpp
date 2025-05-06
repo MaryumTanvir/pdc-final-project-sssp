@@ -266,11 +266,10 @@ bool loadGraph(const string &filename, vector<idx_t> &xadj, vector<idx_t> &adjnc
 }
 
 // Loads edge changes from a file
-// Format: I/D <u> <v> [<weight>] (I for insertion, D for deletion, weight for insertions)
 vector<pair<pair<int, int>, int>> loadChanges(const string &filename, const Graph &G, int rank)
 {
     vector<pair<pair<int, int>, int>> changes;
-    if (rank == 0) // Only rank 0 reads the file
+    if (rank == 0) 
     {
         ifstream file(filename);
         if (!file.is_open())
