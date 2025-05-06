@@ -1,0 +1,274 @@
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls   s/call   s/call  name    
+ 58.55     35.00    35.00        1    35.00    57.35  loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&)
+ 31.48     53.82    18.82 10000000     0.00     0.00  std::pair<std::_Rb_tree_iterator<std::pair<long, long> >, bool> std::_Rb_tree<std::pair<long, long>, std::pair<long, long>, std::_Identity<std::pair<long, long> >, std::less<std::pair<long, long> >, std::allocator<std::pair<long, long> > >::_M_insert_unique<std::pair<long, long> const&>(std::pair<long, long> const&)
+  3.08     55.66     1.84  5494414     0.00     0.00  frame_dummy
+  2.51     57.16     1.50        1     1.50     1.50  void std::__introsort_loop<__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long, __gnu_cxx::__ops::_Iter_comp_iter<loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&)::{lambda(Edge const&, Edge const&)#1}> >(__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, __gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long, __gnu_cxx::__ops::_Iter_comp_iter<loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&)::{lambda(Edge const&, Edge const&)#1}>)
+  1.79     58.23     1.07        1     1.07     2.33  sequentialSSSP(Graph const&, SSSPTree&, long)
+  1.35     59.04     0.81       26     0.03     0.03  void std::vector<Edge, std::allocator<Edge> >::_M_realloc_insert<long&, long&, long const&>(__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long&, long&, long const&)
+  0.72     59.47     0.43  5005047     0.00     0.00  void std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > >::_M_realloc_insert<std::pair<long, long> >(__gnu_cxx::__normal_iterator<std::pair<long, long>*, std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > > >, std::pair<long, long>&&)
+  0.35     59.68     0.21       25     0.01     0.01  void std::vector<Edge, std::allocator<Edge> >::_M_realloc_insert<long&, long&, long&>(__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long&, long&, long&)
+  0.10     59.74     0.06                             _init
+  0.03     59.76     0.02                             main
+  0.02     59.77     0.01  6420370     0.00     0.00  std::__cxx11::to_string(long)
+  0.02     59.78     0.01        1     0.01     0.01  updateSSSP(Graph&, SSSPTree&, std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > > const&)
+  0.00     59.78     0.00   529000     0.00     0.00  std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string<std::allocator<char> >(char const*, std::allocator<char> const&)
+  0.00     59.78     0.00       52     0.00     0.00  void std::vector<long, std::allocator<long> >::_M_realloc_insert<long const&>(__gnu_cxx::__normal_iterator<long*, std::vector<long, std::allocator<long> > >, long const&)
+  0.00     59.78     0.00       50     0.00     0.00  Graph::removeEdge(long, long)
+  0.00     59.78     0.00       22     0.00     0.00  void std::vector<long, std::allocator<long> >::_M_realloc_insert<long>(__gnu_cxx::__normal_iterator<long*, std::vector<long, std::allocator<long> > >, long&&)
+  0.00     59.78     0.00       10     0.00     0.00  std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > >::_M_erase(__gnu_cxx::__normal_iterator<std::pair<long, long>*, std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > > >)
+  0.00     59.78     0.00        8     0.00     0.00  void std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > >::_M_realloc_insert<std::pair<std::pair<long, long>, long> >(__gnu_cxx::__normal_iterator<std::pair<std::pair<long, long>, long>*, std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > > >, std::pair<std::pair<long, long>, long>&&)
+  0.00     59.78     0.00        3     0.00     0.00  std::vector<long, std::allocator<long> >::~vector()
+  0.00     59.78     0.00        1     0.00     0.00  readChangesFromFile(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+  0.00     59.78     0.00        1     0.00     0.00  SSSPTree::SSSPTree(long)
+  0.00     59.78     0.00        1     0.00     0.00  SSSPTree::~SSSPTree()
+  0.00     59.78     0.00        1     0.00     0.00  std::vector<std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > >, std::allocator<std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > > > >::~vector()
+  0.00     59.78     0.00        1     0.00     0.00  std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > >::~vector()
+
+ %         the percentage of the total running time of the
+time       program used by this function.
+
+cumulative a running sum of the number of seconds accounted
+ seconds   for by this function and those listed above it.
+
+ self      the number of seconds accounted for by this
+seconds    function alone.  This is the major sort for this
+           listing.
+
+calls      the number of times this function was invoked, if
+           this function is profiled, else blank.
+
+ self      the average number of milliseconds spent in this
+ms/call    function per call, if this function is profiled,
+	   else blank.
+
+ total     the average number of milliseconds spent in this
+ms/call    function and its descendents per call, if this
+	   function is profiled, else blank.
+
+name       the name of the function.  This is the minor sort
+           for this listing. The index shows the location of
+	   the function in the gprof listing. If the index is
+	   in parenthesis it shows where it would appear in
+	   the gprof listing if it were to be printed.
+
+Copyright (C) 2012-2024 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+		     Call graph (explanation follows)
+
+
+granularity: each sample hit covers 4 byte(s) for 0.02% of 59.78 seconds
+
+index % time    self  children    called     name
+                                                 <spontaneous>
+[1]     99.9    0.02   59.70                 main [1]
+               35.00   22.35       1/1           loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&) [2]
+                1.07    1.26       1/1           sequentialSSSP(Graph const&, SSSPTree&, long) [4]
+                0.01    0.00 6420370/6420370     std::__cxx11::to_string(long) [11]
+                0.01    0.00       1/1           updateSSSP(Graph&, SSSPTree&, std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > > const&) [12]
+                0.00    0.00       4/5494414     frame_dummy [5]
+                0.00    0.00  529000/529000      std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string<std::allocator<char> >(char const*, std::allocator<char> const&) [18]
+                0.00    0.00       3/3           std::vector<long, std::allocator<long> >::~vector() [24]
+                0.00    0.00       1/1           std::vector<std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > >, std::allocator<std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > > > >::~vector() [28]
+                0.00    0.00       1/1           SSSPTree::SSSPTree(long) [26]
+                0.00    0.00       1/1           readChangesFromFile(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [25]
+                0.00    0.00       1/1           std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > >::~vector() [29]
+                0.00    0.00       1/1           SSSPTree::~SSSPTree() [27]
+-----------------------------------------------
+               35.00   22.35       1/1           main [1]
+[2]     95.9   35.00   22.35       1         loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&) [2]
+               18.82    0.00 10000000/10000000     std::pair<std::_Rb_tree_iterator<std::pair<long, long> >, bool> std::_Rb_tree<std::pair<long, long>, std::pair<long, long>, std::_Identity<std::pair<long, long> >, std::less<std::pair<long, long> >, std::allocator<std::pair<long, long> > >::_M_insert_unique<std::pair<long, long> const&>(std::pair<long, long> const&) [3]
+                1.50    0.00       1/1           void std::__introsort_loop<__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long, __gnu_cxx::__ops::_Iter_comp_iter<loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&)::{lambda(Edge const&, Edge const&)#1}> >(__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, __gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long, __gnu_cxx::__ops::_Iter_comp_iter<loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&)::{lambda(Edge const&, Edge const&)#1}>) [6]
+                0.81    0.00      26/26          void std::vector<Edge, std::allocator<Edge> >::_M_realloc_insert<long&, long&, long const&>(__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long&, long&, long const&) [7]
+                0.58    0.00 1737332/5494414     frame_dummy [5]
+                0.43    0.00 5005025/5005047     void std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > >::_M_realloc_insert<std::pair<long, long> >(__gnu_cxx::__normal_iterator<std::pair<long, long>*, std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > > >, std::pair<long, long>&&) [8]
+                0.21    0.00      25/25          void std::vector<Edge, std::allocator<Edge> >::_M_realloc_insert<long&, long&, long&>(__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long&, long&, long&) [9]
+                0.00    0.00      52/52          void std::vector<long, std::allocator<long> >::_M_realloc_insert<long const&>(__gnu_cxx::__normal_iterator<long*, std::vector<long, std::allocator<long> > >, long const&) [19]
+                0.00    0.00      22/22          void std::vector<long, std::allocator<long> >::_M_realloc_insert<long>(__gnu_cxx::__normal_iterator<long*, std::vector<long, std::allocator<long> > >, long&&) [21]
+-----------------------------------------------
+               18.82    0.00 10000000/10000000     loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&) [2]
+[3]     31.5   18.82    0.00 10000000         std::pair<std::_Rb_tree_iterator<std::pair<long, long> >, bool> std::_Rb_tree<std::pair<long, long>, std::pair<long, long>, std::_Identity<std::pair<long, long> >, std::less<std::pair<long, long> >, std::allocator<std::pair<long, long> > >::_M_insert_unique<std::pair<long, long> const&>(std::pair<long, long> const&) [3]
+-----------------------------------------------
+                1.07    1.26       1/1           main [1]
+[4]      3.9    1.07    1.26       1         sequentialSSSP(Graph const&, SSSPTree&, long) [4]
+                1.26    0.00 3757078/5494414     frame_dummy [5]
+                0.00    0.00      22/5005047     void std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > >::_M_realloc_insert<std::pair<long, long> >(__gnu_cxx::__normal_iterator<std::pair<long, long>*, std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > > >, std::pair<long, long>&&) [8]
+-----------------------------------------------
+                             1144333             frame_dummy [5]
+                0.00    0.00       4/5494414     main [1]
+                0.58    0.00 1737332/5494414     loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&) [2]
+                1.26    0.00 3757078/5494414     sequentialSSSP(Graph const&, SSSPTree&, long) [4]
+[5]      3.1    1.84    0.00 5494414+1144333 frame_dummy [5]
+                             1144333             frame_dummy [5]
+-----------------------------------------------
+                             1851695             void std::__introsort_loop<__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long, __gnu_cxx::__ops::_Iter_comp_iter<loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&)::{lambda(Edge const&, Edge const&)#1}> >(__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, __gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long, __gnu_cxx::__ops::_Iter_comp_iter<loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&)::{lambda(Edge const&, Edge const&)#1}>) [6]
+                1.50    0.00       1/1           loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&) [2]
+[6]      2.5    1.50    0.00       1+1851695 void std::__introsort_loop<__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long, __gnu_cxx::__ops::_Iter_comp_iter<loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&)::{lambda(Edge const&, Edge const&)#1}> >(__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, __gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long, __gnu_cxx::__ops::_Iter_comp_iter<loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&)::{lambda(Edge const&, Edge const&)#1}>) [6]
+                             1851695             void std::__introsort_loop<__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long, __gnu_cxx::__ops::_Iter_comp_iter<loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&)::{lambda(Edge const&, Edge const&)#1}> >(__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, __gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long, __gnu_cxx::__ops::_Iter_comp_iter<loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&)::{lambda(Edge const&, Edge const&)#1}>) [6]
+-----------------------------------------------
+                0.81    0.00      26/26          loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&) [2]
+[7]      1.4    0.81    0.00      26         void std::vector<Edge, std::allocator<Edge> >::_M_realloc_insert<long&, long&, long const&>(__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long&, long&, long const&) [7]
+-----------------------------------------------
+                0.00    0.00      22/5005047     sequentialSSSP(Graph const&, SSSPTree&, long) [4]
+                0.43    0.00 5005025/5005047     loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&) [2]
+[8]      0.7    0.43    0.00 5005047         void std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > >::_M_realloc_insert<std::pair<long, long> >(__gnu_cxx::__normal_iterator<std::pair<long, long>*, std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > > >, std::pair<long, long>&&) [8]
+-----------------------------------------------
+                0.21    0.00      25/25          loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&) [2]
+[9]      0.4    0.21    0.00      25         void std::vector<Edge, std::allocator<Edge> >::_M_realloc_insert<long&, long&, long&>(__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long&, long&, long&) [9]
+-----------------------------------------------
+                                                 <spontaneous>
+[10]     0.1    0.06    0.00                 _init [10]
+-----------------------------------------------
+                0.01    0.00 6420370/6420370     main [1]
+[11]     0.0    0.01    0.00 6420370         std::__cxx11::to_string(long) [11]
+-----------------------------------------------
+                0.01    0.00       1/1           main [1]
+[12]     0.0    0.01    0.00       1         updateSSSP(Graph&, SSSPTree&, std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > > const&) [12]
+                0.00    0.00      50/50          Graph::removeEdge(long, long) [20]
+                0.00    0.00       5/10          std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > >::_M_erase(__gnu_cxx::__normal_iterator<std::pair<long, long>*, std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > > >) [22]
+-----------------------------------------------
+                0.00    0.00  529000/529000      main [1]
+[18]     0.0    0.00    0.00  529000         std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string<std::allocator<char> >(char const*, std::allocator<char> const&) [18]
+-----------------------------------------------
+                0.00    0.00      52/52          loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&) [2]
+[19]     0.0    0.00    0.00      52         void std::vector<long, std::allocator<long> >::_M_realloc_insert<long const&>(__gnu_cxx::__normal_iterator<long*, std::vector<long, std::allocator<long> > >, long const&) [19]
+-----------------------------------------------
+                0.00    0.00      50/50          updateSSSP(Graph&, SSSPTree&, std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > > const&) [12]
+[20]     0.0    0.00    0.00      50         Graph::removeEdge(long, long) [20]
+                0.00    0.00       5/10          std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > >::_M_erase(__gnu_cxx::__normal_iterator<std::pair<long, long>*, std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > > >) [22]
+-----------------------------------------------
+                0.00    0.00      22/22          loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&) [2]
+[21]     0.0    0.00    0.00      22         void std::vector<long, std::allocator<long> >::_M_realloc_insert<long>(__gnu_cxx::__normal_iterator<long*, std::vector<long, std::allocator<long> > >, long&&) [21]
+-----------------------------------------------
+                0.00    0.00       5/10          updateSSSP(Graph&, SSSPTree&, std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > > const&) [12]
+                0.00    0.00       5/10          Graph::removeEdge(long, long) [20]
+[22]     0.0    0.00    0.00      10         std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > >::_M_erase(__gnu_cxx::__normal_iterator<std::pair<long, long>*, std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > > >) [22]
+-----------------------------------------------
+                0.00    0.00       8/8           readChangesFromFile(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [25]
+[23]     0.0    0.00    0.00       8         void std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > >::_M_realloc_insert<std::pair<std::pair<long, long>, long> >(__gnu_cxx::__normal_iterator<std::pair<std::pair<long, long>, long>*, std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > > >, std::pair<std::pair<long, long>, long>&&) [23]
+-----------------------------------------------
+                0.00    0.00       3/3           main [1]
+[24]     0.0    0.00    0.00       3         std::vector<long, std::allocator<long> >::~vector() [24]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[25]     0.0    0.00    0.00       1         readChangesFromFile(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [25]
+                0.00    0.00       8/8           void std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > >::_M_realloc_insert<std::pair<std::pair<long, long>, long> >(__gnu_cxx::__normal_iterator<std::pair<std::pair<long, long>, long>*, std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > > >, std::pair<std::pair<long, long>, long>&&) [23]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[26]     0.0    0.00    0.00       1         SSSPTree::SSSPTree(long) [26]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[27]     0.0    0.00    0.00       1         SSSPTree::~SSSPTree() [27]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[28]     0.0    0.00    0.00       1         std::vector<std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > >, std::allocator<std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > > > >::~vector() [28]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[29]     0.0    0.00    0.00       1         std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > >::~vector() [29]
+-----------------------------------------------
+
+ This table describes the call tree of the program, and was sorted by
+ the total amount of time spent in each function and its children.
+
+ Each entry in this table consists of several lines.  The line with the
+ index number at the left hand margin lists the current function.
+ The lines above it list the functions that called this function,
+ and the lines below it list the functions this one called.
+ This line lists:
+     index	A unique number given to each element of the table.
+		Index numbers are sorted numerically.
+		The index number is printed next to every function name so
+		it is easier to look up where the function is in the table.
+
+     % time	This is the percentage of the `total' time that was spent
+		in this function and its children.  Note that due to
+		different viewpoints, functions excluded by options, etc,
+		these numbers will NOT add up to 100%.
+
+     self	This is the total amount of time spent in this function.
+
+     children	This is the total amount of time propagated into this
+		function by its children.
+
+     called	This is the number of times the function was called.
+		If the function called itself recursively, the number
+		only includes non-recursive calls, and is followed by
+		a `+' and the number of recursive calls.
+
+     name	The name of the current function.  The index number is
+		printed after it.  If the function is a member of a
+		cycle, the cycle number is printed between the
+		function's name and the index number.
+
+
+ For the function's parents, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the function into this parent.
+
+     children	This is the amount of time that was propagated from
+		the function's children into this parent.
+
+     called	This is the number of times this parent called the
+		function `/' the total number of times the function
+		was called.  Recursive calls to the function are not
+		included in the number after the `/'.
+
+     name	This is the name of the parent.  The parent's index
+		number is printed after it.  If the parent is a
+		member of a cycle, the cycle number is printed between
+		the name and the index number.
+
+ If the parents of the function cannot be determined, the word
+ `<spontaneous>' is printed in the `name' field, and all the other
+ fields are blank.
+
+ For the function's children, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the child into the function.
+
+     children	This is the amount of time that was propagated from the
+		child's children to the function.
+
+     called	This is the number of times the function called
+		this child `/' the total number of times the child
+		was called.  Recursive calls by the child are not
+		listed in the number after the `/'.
+
+     name	This is the name of the child.  The child's index
+		number is printed after it.  If the child is a
+		member of a cycle, the cycle number is printed
+		between the name and the index number.
+
+ If there are any cycles (circles) in the call graph, there is an
+ entry for the cycle-as-a-whole.  This entry shows who called the
+ cycle (as parents) and the members of the cycle (as children.)
+ The `+' recursive calls entry shows the number of function calls that
+ were internal to the cycle, and the calls entry for each member shows,
+ for that member, how many times it was called from other members of
+ the cycle.
+
+Copyright (C) 2012-2024 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+Index by function name
+
+  [12] updateSSSP(Graph&, SSSPTree&, std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > > const&) [9] void std::vector<Edge, std::allocator<Edge> >::_M_realloc_insert<long&, long&, long&>(__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long&, long&, long&) [24] std::vector<long, std::allocator<long> >::~vector()
+   [4] sequentialSSSP(Graph const&, SSSPTree&, long) [28] std::vector<std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > >, std::allocator<std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > > > >::~vector() [18] std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string<std::allocator<char> >(char const*, std::allocator<char> const&)
+  [25] readChangesFromFile(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [23] void std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > >::_M_realloc_insert<std::pair<std::pair<long, long>, long> >(__gnu_cxx::__normal_iterator<std::pair<std::pair<long, long>, long>*, std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > > >, std::pair<std::pair<long, long>, long>&&) [11] std::__cxx11::to_string(long)
+   [2] loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&) [29] std::vector<std::pair<std::pair<long, long>, long>, std::allocator<std::pair<std::pair<long, long>, long> > >::~vector() [3] std::pair<std::_Rb_tree_iterator<std::pair<long, long> >, bool> std::_Rb_tree<std::pair<long, long>, std::pair<long, long>, std::_Identity<std::pair<long, long> >, std::less<std::pair<long, long> >, std::allocator<std::pair<long, long> > >::_M_insert_unique<std::pair<long, long> const&>(std::pair<long, long> const&)
+  [20] Graph::removeEdge(long, long) [8] void std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > >::_M_realloc_insert<std::pair<long, long> >(__gnu_cxx::__normal_iterator<std::pair<long, long>*, std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > > >, std::pair<long, long>&&) [6] void std::__introsort_loop<__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long, __gnu_cxx::__ops::_Iter_comp_iter<loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&)::{lambda(Edge const&, Edge const&)#1}> >(__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, __gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long, __gnu_cxx::__ops::_Iter_comp_iter<loadGraph(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, std::vector<long, std::allocator<long> >&, long&, long&, Graph&)::{lambda(Edge const&, Edge const&)#1}>)
+  [26] SSSPTree::SSSPTree(long) [22] std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > >::_M_erase(__gnu_cxx::__normal_iterator<std::pair<long, long>*, std::vector<std::pair<long, long>, std::allocator<std::pair<long, long> > > >) [10] _init
+  [27] SSSPTree::~SSSPTree()  [19] void std::vector<long, std::allocator<long> >::_M_realloc_insert<long const&>(__gnu_cxx::__normal_iterator<long*, std::vector<long, std::allocator<long> > >, long const&) [5] frame_dummy
+   [7] void std::vector<Edge, std::allocator<Edge> >::_M_realloc_insert<long&, long&, long const&>(__gnu_cxx::__normal_iterator<Edge*, std::vector<Edge, std::allocator<Edge> > >, long&, long&, long const&) [21] void std::vector<long, std::allocator<long> >::_M_realloc_insert<long>(__gnu_cxx::__normal_iterator<long*, std::vector<long, std::allocator<long> > >, long&&) [1] main
