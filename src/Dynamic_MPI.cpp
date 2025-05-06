@@ -34,7 +34,7 @@ struct Edge
 // Graph representation using adjacency list
 struct Graph
 {
-    int V;                              // Number of vertices
+    int V;  // Number of vertices
     vector<vector<pair<int, int>>> adj; // Adjacency list: (neighbor, weight)
     Graph(int vertices, int expected_edges) : V(vertices), adj(vertices)
     {
@@ -300,10 +300,11 @@ vector<pair<pair<int, int>, int>> loadChanges(const string &filename, const Grap
     return changes;
 }
 
-// Parallel SSSP update without critical sections
+// Implements parallel dynamic SSSP update algorithm
 void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>, int>> &changes,
                         int rank, int size)
 {
+    // Algorithm 2 - Identifying Affected Vertices
     int V = G.V;
     vector<int> local_vertices;
     local_vertices.reserve(V / size);
@@ -312,7 +313,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
         local_vertices.push_back(v);
     }
 
-#pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < changes.size(); ++i)
     {
         int u = changes[i].first.first;
@@ -354,11 +355,12 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
                 T.dist[u] = INT_MAX;
                 T.parent[u] = -1;
                 T.affected_del[u] = true;
-                T.affected[u] = true;
+                T.affected[u] = true; // Mark the child vertex as affected
             }
         }
     }
 
+    // Algorithm 4 - Updating Affected Vertices
     bool global_change = true;
     int iteration = 0;
     const int max_iterations = min(2 * V, 1000);
@@ -366,14 +368,16 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
     {
         global_change = false;
 
+        // Deletion Phase: Process deletion-affected vertices
         bool local_del_change = false;
-#pragma omp parallel for schedule(dynamic) reduction(| : local_del_change)
+        #pragma omp parallel for schedule(dynamic) reduction(| : local_del_change)
         for (size_t i = 0; i < local_vertices.size(); ++i)
         {
             int v = local_vertices[i];
             if (T.affected_del[v])
             {
                 T.affected_del[v] = false;
+                // Reset distances for descendants
                 for (int c = 0; c < V; ++c)
                 {
                     if (T.parent[c] == v)
@@ -385,6 +389,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
                         local_del_change = true;
                     }
                 }
+                // Mark neighbors as affected to process them as well
                 for (const auto &edge : G.adj[v])
                 {
                     T.affected[edge.first] = true;
@@ -392,10 +397,11 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
             }
         }
 
+        // Synchronize affected flags across processes
         vector<char> send_affected_del(V, 0), recv_affected_del(V, 0);
         vector<char> send_affected(V, 0), recv_affected(V, 0);
 
-#pragma omp parallel for schedule(dynamic)
+        #pragma omp parallel for schedule(dynamic)
         for (int v = 0; v < V; ++v)
         {
             send_affected_del[v] = T.affected_del[v];
@@ -404,15 +410,16 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
         MPI_Allreduce(send_affected_del.data(), recv_affected_del.data(), V, MPI_CHAR, MPI_LOR, MPI_COMM_WORLD);
         MPI_Allreduce(send_affected.data(), recv_affected.data(), V, MPI_CHAR, MPI_LOR, MPI_COMM_WORLD);
 
-#pragma omp parallel for schedule(dynamic)
+        #pragma omp parallel for schedule(dynamic)
         for (int v = 0; v < V; ++v)
         {
             T.affected_del[v] = recv_affected_del[v];
             T.affected[v] = recv_affected[v];
         }
 
+        // Update Phase: Recompute distances for affected vertices
         bool local_update_change = false;
-#pragma omp parallel for schedule(dynamic) reduction(| : local_update_change)
+        #pragma omp parallel for schedule(dynamic) reduction(| : local_update_change)
         for (size_t i = 0; i < local_vertices.size(); ++i)
         {
             int v = local_vertices[i];
@@ -449,7 +456,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
         vector<int> send_dist(V), recv_dist(V);
         vector<int> send_parent(V), recv_parent(V);
 
-#pragma omp parallel for schedule(dynamic)
+        #pragma omp parallel for schedule(dynamic)
         for (int v = 0; v < V; ++v)
         {
             send_dist[v] = T.dist[v];
@@ -458,19 +465,31 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
         MPI_Allreduce(send_dist.data(), recv_dist.data(), V, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         MPI_Allreduce(send_parent.data(), recv_parent.data(), V, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
-#pragma omp parallel for schedule(dynamic)
+        #pragma omp parallel for schedule(dynamic)
         for (int v = 0; v < V; ++v)
         {
             T.dist[v] = recv_dist[v];
             T.parent[v] = recv_parent[v];
         }
 
+        // Check for global convergence
         int local_change_int = local_del_change || local_update_change;
         int global_change_int;
         MPI_Allreduce(&local_change_int, &global_change_int, 1, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
         global_change = global_change_int;
 
         ++iteration;
+
+        /*
+        if (rank == 0) {
+            cout << "Rank " << rank << ": Iteration " << iteration << ", global_change=" << global_change << endl;
+            for (int v = 0; v < V; ++v) {
+                if (T.affected[v]) {
+                    cout << "Rank " << rank << ": Vertex " << v + 1 << " is affected" << endl;
+                }
+            }
+        }
+        */
     }
 
     if (iteration >= max_iterations && rank == 0)
@@ -484,12 +503,14 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
 // Main function
 int main(int argc, char *argv[])
 {
+    // MPI Environment
     MPI_Init(&argc, &argv);
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     cout << "Rank: " << rank << endl;
+    // open output file
     if (rank == 0)
     {
         out_file.open("../results/results.txt");
@@ -505,6 +526,7 @@ int main(int argc, char *argv[])
     int nvtxs = 0, nedges = 0;
     Graph G(0, 0);
 
+    //Load and preprocess graph
     if (!loadGraph(graph_filename, nvtxs, nedges, G, rank))
     {
         if (rank == 0 && out_file.is_open())
@@ -513,15 +535,18 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    // Initial SSSP Tree
     SSSPTree T(nvtxs);
     if (rank == 0)
     {
         sequentialSSSP(G, T, 0);
     }
 
+    // Broadcast initial tree to every process
     MPI_Bcast(T.dist.data(), nvtxs, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(T.parent.data(), nvtxs, MPI_INT, 0, MPI_COMM_WORLD);
 
+    // Output initial SSSP tree
     if (rank == 0)
     {
         stringstream ss_term;
@@ -546,6 +571,7 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Load updates from file & broadcast to all processes
     auto changes = loadChanges(changes_filename, G, rank);
 
     int num_changes = changes.size();
@@ -563,6 +589,7 @@ int main(int argc, char *argv[])
     }
     MPI_Bcast(change_buf.data(), num_changes * 3, MPI_INT, 0, MPI_COMM_WORLD);
 
+    // Reconstruct changes on all processes
     changes.clear();
     changes.reserve(num_changes);
     for (int i = 0; i < num_changes; ++i)
@@ -588,8 +615,10 @@ int main(int argc, char *argv[])
         PRINT(rank, ss.str());
     }
 
+    // ALGORITHM - Update SSSP Tree
     parallelSSSPUpdate(G, T, changes, rank, size);
 
+    // Output updated SSSP tree
     if (rank == 0)
     {
         stringstream ss_term;

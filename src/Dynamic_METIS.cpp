@@ -266,10 +266,11 @@ bool loadGraph(const string &filename, vector<idx_t> &xadj, vector<idx_t> &adjnc
 }
 
 // Loads edge changes from a file
+// Format: I/D <u> <v> [<weight>] (I for insertion, D for deletion, weight for insertions)
 vector<pair<pair<int, int>, int>> loadChanges(const string &filename, const Graph &G, int rank)
 {
     vector<pair<pair<int, int>, int>> changes;
-    if (rank == 0) 
+    if (rank == 0) // Only rank 0 reads the file
     {
         ifstream file(filename);
         if (!file.is_open())
@@ -394,7 +395,7 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
             local_vertices.push_back(v);
     }
 
-#pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < changes.size(); ++i)
     {
         int u = changes[i].first.first;
