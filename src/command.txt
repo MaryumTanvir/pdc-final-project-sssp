@@ -44,4 +44,20 @@ Extra CPP:
 
 
 
-Vm Commands
+Gprof setup
+
+//-pg: Enables profiling.
+
+//-O2: Optimization level (can be omitted for debugging purposes).
+
+sudo apt update
+sudo apt install binutils
+
+g++ -pg -O2 -o Sequential Sequential.cpp
+
+./Sequential
+
+gprof Sequential gmon.out > sequential_profile.txt
+
+
+
