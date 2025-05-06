@@ -1,5 +1,3 @@
-#include <mpi.h>
-#include <metis.h>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -14,31 +12,31 @@
 
 using namespace std;
 
-// Structure to represent an edge
+// Structure to represent an edge (Section 2, Page 2: Graph representation)
 struct Edge
 {
-    idx_t from, to, weight;
-    Edge(idx_t f, idx_t t, idx_t w) : from(f), to(t), weight(w) {}
+    int from, to, weight;
+    Edge(int f, int t, int w) : from(f), to(t), weight(w) {}
 };
 
-// Graph representation using adjacency list
+// Graph representation using adjacency list (Section 2, Page 2: Graph representation)
 struct Graph
 {
     int V;                              // Number of vertices
     vector<vector<pair<int, int>>> adj; // Adjacency list: (neighbor, weight)
     Graph(int vertices) : V(vertices), adj(vertices) {}
-    // Add edge to the graph (undirected)
+    // Add edge to the graph (undirected) (Section 4, Page 4: Edge Insertion)
     void addEdge(int u, int v, int w)
     {
         if (u >= V || v >= V || u < 0 || v < 0)
         {
             cerr << "Invalid edge: u=" << u << ", v=" << v << ", V=" << V << endl;
-            MPI_Abort(MPI_COMM_WORLD, 1);
+            exit(1);
         }
         adj[u].push_back({v, w});
         adj[v].push_back({u, w}); // Undirected graph
     }
-    // Remove edge from the graph (undirected)
+    // Remove edge from the graph (undirected) (Section 4, Page 4: Edge Deletion)
     void removeEdge(int u, int v)
     {
         auto it_u = find_if(adj[u].begin(), adj[u].end(),
@@ -54,7 +52,7 @@ struct Graph
     }
 };
 
-// SSSP tree structure to store shortest path information
+// SSSP tree structure to store shortest path information (Section 2, Page 2: SSSP Tree)
 struct SSSPTree
 {
     vector<int> parent;
@@ -64,7 +62,7 @@ struct SSSPTree
     SSSPTree(int V) : parent(V, -1), dist(V, INT_MAX), affected(V, false), affected_del(V, false) {}
 };
 
-// Safe addition to prevent integer overflow in distance calculations
+// Safe addition to prevent integer overflow in distance calculations (Section 4, Page 4: Safe Distance Updates)
 int safeAdd(int a, int b)
 {
     if (a == INT_MAX || b == INT_MAX)
@@ -75,7 +73,7 @@ int safeAdd(int a, int b)
 };
 
 // Implements Dijkstra's algorithm for initial SSSP tree computation
-// (Article: Sequential SSSP Initialization, Section 2, Page 2)
+// (Section 2, Page 2: Sequential SSSP Initialization)
 void sequentialSSSP(const Graph &G, SSSPTree &T, int source)
 {
     T.dist[source] = 0;
@@ -107,23 +105,21 @@ void sequentialSSSP(const Graph &G, SSSPTree &T, int source)
     }
 }
 
-// Loads graph from file and constructs adjacency list and METIS CSR format
-// (Article: Graph Preprocessing for Dynamic Updates, Section 5, Page 6)
-bool loadGraph(const string &filename, vector<idx_t> &xadj, vector<idx_t> &adjncy,
-               vector<idx_t> &adjwgt, idx_t &nvtxs, idx_t &nedges, Graph &G, int rank)
+// Loads graph from file and constructs adjacency list
+// (Section 5, Page 6: Graph Preprocessing for Dynamic Updates)
+bool loadGraph(const string &filename, Graph &G)
 {
     ifstream file(filename);
     if (!file.is_open())
     {
-        if (rank == 0)
-            cerr << "Error: Could not open file: " << filename << endl;
+        cerr << "Error: Could not open file: " << filename << endl;
         return false;
     }
 
     vector<Edge> edges;
-    map<idx_t, idx_t> vertex_map;
-    set<pair<idx_t, idx_t>> edge_set;
-    idx_t max_vertex = 0;
+    map<int, int> vertex_map;
+    set<pair<int, int>> edge_set;
+    int max_vertex = 0;
     string line;
     int line_count = 0;
 
@@ -135,28 +131,25 @@ bool loadGraph(const string &filename, vector<idx_t> &xadj, vector<idx_t> &adjnc
             continue;
 
         istringstream iss(line);
-        idx_t from, to;
-        idx_t weight = 1;
+        int from, to;
+        int weight = 1;
         if (!(iss >> from >> to))
         {
-            if (rank == 0)
-                cerr << "Error: Invalid format in line " << line_count << ": " << line << endl;
+            cerr << "Error: Invalid format in line " << line_count << ": " << line << endl;
             return false;
         }
         iss >> weight;
 
         if (from <= 0 || to <= 0)
         {
-            if (rank == 0)
-                cerr << "Error: Invalid vertex index in line " << line_count
-                     << ": from=" << from << ", to=" << to << endl;
+            cerr << "Error: Invalid vertex index in line " << line_count
+                 << ": from=" << from << ", to=" << to << endl;
             return false;
         }
         if (from == to)
         {
-            if (rank == 0)
-                cout << "Warning: Skipping self-loop in line " << line_count
-                     << ": " << from << " -> " << to << endl;
+            cout << "Warning: Skipping self-loop in line " << line_count
+                 << ": " << from << " -> " << to << endl;
             continue;
         }
 
@@ -168,7 +161,7 @@ bool loadGraph(const string &filename, vector<idx_t> &xadj, vector<idx_t> &adjnc
     file.close();
 
     // Assign 0-based indices to vertices
-    nvtxs = 0;
+    int nvtxs = 0;
     for (auto &[orig, new_idx] : vertex_map)
     {
         new_idx = nvtxs++;
@@ -176,282 +169,213 @@ bool loadGraph(const string &filename, vector<idx_t> &xadj, vector<idx_t> &adjnc
 
     // Initialize graph with adjacency list
     G = Graph(nvtxs);
-    vector<Edge> processed_edges;
     for (const auto &e : edges)
     {
-        idx_t u = vertex_map[e.from];
-        idx_t v = vertex_map[e.to];
-        pair<idx_t, idx_t> edge = {min(u, v), max(u, v)};
+        int u = vertex_map[e.from];
+        int v = vertex_map[e.to];
+        pair<int, int> edge = {min(u, v), max(u, v)};
         if (edge_set.insert(edge).second)
         {
-            processed_edges.emplace_back(u, v, e.weight);
-            processed_edges.emplace_back(v, u, e.weight);
             G.addEdge(u, v, e.weight);
         }
-        else if (rank == 0)
+        else
         {
             cout << "Warning: Skipping duplicate edge: " << e.from << " -> " << e.to << endl;
         }
     }
 
-    // Build CSR format for METIS
-    sort(processed_edges.begin(), processed_edges.end(),
-         [](const Edge &a, const Edge &b)
-         { return a.from < b.from; });
-
-    xadj.push_back(0);
-    vector<idx_t> degree(nvtxs, 0);
-    for (const auto &e : processed_edges)
-    {
-        degree[e.from]++;
-        adjncy.push_back(e.to);
-        adjwgt.push_back(e.weight);
-    }
-
-    for (idx_t i = 0; i < nvtxs; ++i)
-    {
-        xadj.push_back(xadj.back() + degree[i]);
-    }
-
-    nedges = adjncy.size() / 2;
-
-    if (xadj[nvtxs] != static_cast<idx_t>(adjncy.size()))
-    {
-        if (rank == 0)
-            cerr << "Error: CSR format invalid: xadj[" << nvtxs << "]=" << xadj[nvtxs]
-                 << ", adjncy.size()=" << adjncy.size() << endl;
-        return false;
-    }
-
-    if (rank == 0)
-        cout << "Loaded graph with " << nvtxs << " vertices and " << nedges << " edges" << endl;
+    cout << "Loaded graph with " << nvtxs << " vertices and " << edge_set.size() << " edges" << endl;
     return true;
 }
 
-// Loads edge changes from a file
-// Format: I/D <u> <v> [<weight>] (I for insertion, D for deletion, weight for insertions)
-vector<pair<pair<int, int>, int>> loadChanges(const string &filename, const Graph &G, int rank)
+// Generates random edge changes for testing dynamic updates
+// (Section 4, Page 4: Dynamic Graph Changes)
+vector<pair<pair<int, int>, int>> generateChanges(const Graph &G, int num_changes, double insert_ratio)
 {
     vector<pair<pair<int, int>, int>> changes;
-    if (rank == 0) // Only rank 0 reads the file
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_int_distribution<> vertex_dist(0, G.V - 1);
+    uniform_int_distribution<> weight_dist(1, 1);
+    bernoulli_distribution insert_dist(insert_ratio);
+
+    for (int i = 0; i < num_changes; ++i)
     {
-        ifstream file(filename);
-        if (!file.is_open())
+        int u = vertex_dist(gen);
+        int v = vertex_dist(gen);
+        while (u == v)
+            v = vertex_dist(gen);
+
+        bool exists = false;
+        for (const auto &edge : G.adj[u])
         {
-            cerr << "Error: Could not open changes file: " << filename << endl;
-            MPI_Abort(MPI_COMM_WORLD, 1);
+            if (edge.first == v)
+            {
+                exists = true;
+                break;
+            }
         }
 
-        string line;
-        int line_count = 0;
-        set<pair<int, int>> change_set; // Track edges to avoid duplicates
-
-        while (getline(file, line))
+        if (insert_ratio == 0.0)
         {
-            line_count++;
-            if (line.empty() || line[0] == '#')
-                continue;
-
-            istringstream iss(line);
-            char op;
-            int u, v, weight = -1; // Default -1 for deletions
-            if (!(iss >> op >> u >> v))
+            if (exists)
             {
-                cerr << "Error: Invalid format in line " << line_count << ": " << line << endl;
-                MPI_Abort(MPI_COMM_WORLD, 1);
+                changes.push_back({{u, v}, -1});
             }
-            if (op == 'I' && !(iss >> weight))
+            else
             {
-                cerr << "Error: Missing weight for insertion in line " << line_count << ": " << line << endl;
-                MPI_Abort(MPI_COMM_WORLD, 1);
+                --i;
             }
-
-            // Convert 1-based to 0-based indices
-            u--;
-            v--;
-            if (u < 0 || u >= G.V || v < 0 || v >= G.V || u == v)
-            {
-                cerr << "Error: Invalid vertex index in line " << line_count
-                     << ": u=" << u + 1 << ", v=" << v + 1 << ", V=" << G.V << endl;
-                MPI_Abort(MPI_COMM_WORLD, 1);
-            }
-
-            // Normalize edge to avoid duplicates (u < v)
-            int u_norm = min(u, v);
-            int v_norm = max(u, v);
-            pair<int, int> edge = {u_norm, v_norm};
-
-            if (change_set.find(edge) != change_set.end())
-            {
-                cout << "Warning: Skipping duplicate change in line " << line_count
-                     << ": " << (op == 'I' ? "Insert" : "Delete") << " (" << u + 1 << ", " << v + 1 << ")" << endl;
-                continue;
-            }
-
-            bool exists = false;
-            for (const auto &e : G.adj[u])
-            {
-                if (e.first == v)
-                {
-                    exists = true;
-                    break;
-                }
-            }
-
-            if (op == 'D' && !exists)
-            {
-                cout << "Warning: Skipping deletion of non-existent edge in line " << line_count
-                     << ": (" << u + 1 << ", " << v + 1 << ")" << endl;
-                continue;
-            }
-            if (op == 'I' && exists)
-            {
-                cout << "Warning: Skipping insertion of existing edge in line " << line_count
-                     << ": (" << u + 1 << ", " << v + 1 << ")" << endl;
-                continue;
-            }
-
-            changes.push_back({{u, v}, (op == 'I' ? weight : -1)});
-            change_set.insert(edge);
         }
-        file.close();
+        else
+        {
+            int w = insert_dist(gen) ? weight_dist(gen) : (exists ? -1 : weight_dist(gen));
+            changes.push_back({{u, v}, w});
+        }
     }
     return changes;
 }
 
-// Partitions graph using METIS for load balancing across MPI processes
-// (Article: Graph Partitioning for Distributed Parallelism, Section 4, Page 4)
-void partitionGraph(vector<idx_t> &xadj, vector<idx_t> &adjncy,
-                    vector<idx_t> &adjwgt, int nparts, vector<int> &parts, int rank)
-{
-    idx_t nvtxs = xadj.size() - 1;
-    idx_t ncon = 1;
-    idx_t objval;
-    vector<idx_t> part_idx(nvtxs);
-    // Use METIS to partition graph into nparts, minimizing edge cuts
-    int ret = METIS_PartGraphKway(&nvtxs, &ncon, xadj.data(), adjncy.data(), NULL, NULL,
-                                  adjwgt.data(), &nparts, NULL, NULL, NULL, &objval, part_idx.data());
-    if (ret != METIS_OK)
-    {
-        if (rank == 0)
-            cerr << "METIS failed with code: " << ret << endl;
-        MPI_Abort(MPI_COMM_WORLD, 1);
-    }
-    parts.assign(part_idx.begin(), part_idx.end());
-    if (rank == 0)
-        cout << "METIS succeeded. Edge cut: " << objval << endl;
-}
-
-// Implements parallel dynamic SSSP update algorithm (Article: Algorithm 4 - Asynchronous Update of SSSP, Section 5.1, Page 6)
-// Extends shared-memory framework to distributed-memory using MPI and METIS partitioning
-void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>, int>> &changes,
-                        const vector<int> &part, int rank, int size)
+// Implements parallel dynamic SSSP update algorithm (Algorithm 4, Section 5.1, Page 6)
+// Uses shared-memory parallelism with OpenMP, batch processing, and redundant computations to avoid locks
+void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>, int>> &changes, int async_level, int batch_size)
 {
     int V = G.V;
-    // Identify local vertices assigned to this MPI process (Article: Load Balancing via Partitioning, Section 4)
-    vector<int> local_vertices;
-    for (int v = 0; v < V; ++v)
+    vector<pair<pair<int, int>, int>> deletions, insertions;
+
+    // Separate deletions and insertions (Section 5.1, Page 6: Process deletions before insertions)
+    for (const auto &change : changes)
     {
-        if (part[v] == rank)
-            local_vertices.push_back(v);
+        if (change.second < 0)
+            deletions.push_back(change);
+        else
+            insertions.push_back(change);
     }
 
-    // Step 1: Process changed edges in parallel (Article: Algorithm 2 - Identify Affected Vertices, Section 4, Page 4)
-    // Implements lines 4-20 of Algorithm 2, processing deletions and insertions
-#pragma omp parallel for schedule(dynamic)
-    for (size_t i = 0; i < changes.size(); ++i)
+    // Process changes in batches (Section 5.1, Page 7: Processing Batches of Changes)
+    auto processBatch = [&](const vector<pair<pair<int, int>, int>> &batch, bool is_deletion)
     {
-        int u = changes[i].first.first;
-        int v = changes[i].first.second;
-        int w = changes[i].second;
-
-        // Update graph structure (protected by critical section for thread safety)
-#pragma omp critical
+        // Step 1: Apply graph updates sequentially to avoid concurrent modifications
+        for (const auto &change : batch)
         {
+            int u = change.first.first;
+            int v = change.first.second;
+            int w = change.second;
             if (w >= 0)
-            { // Insertion (Algorithm 2, lines 11-20)
-                G.addEdge(u, v, w);
+            {
+                G.addEdge(u, v, w); // Algorithm 2, line 20
             }
             else
-            { // Deletion (Algorithm 2, lines 4-10)
-                G.removeEdge(u, v);
+            {
+                G.removeEdge(u, v); // Algorithm 2, line 10
             }
         }
 
-        if (w >= 0)
-        { // Handle edge insertion (Algorithm 2, lines 12-19)
-            // Determine which vertex may have a shorter path
-            int x = (T.dist[u] > T.dist[v]) ? v : u;
-            int y = (T.dist[u] > T.dist[v]) ? u : v;
-            int new_dist = safeAdd(T.dist[x], w);
-            if (T.dist[y] > new_dist)
+        // Step 2: Identify affected vertices in parallel without locks (Algorithm 2, Section 4, Page 4)
+        // Allow redundant computations as per Page 934
+#pragma omp parallel for schedule(dynamic)
+        for (size_t i = 0; i < batch.size(); ++i)
+        {
+            int u = batch[i].first.first;
+            int v = batch[i].first.second;
+            int w = batch[i].second;
+
+            if (w >= 0)
             {
-#pragma omp critical
+                // Edge insertion (Algorithm 2, lines 12-19)
+                int x = (T.dist[u] > T.dist[v]) ? v : u;
+                int y = (T.dist[u] > T.dist[v]) ? u : v;
+                int new_dist = safeAdd(T.dist[x], w);
+                if (T.dist[y] > new_dist)
                 {
+                    // Allow redundant updates; correctness ensured by iterative convergence
                     T.dist[y] = new_dist;
                     T.parent[y] = x;
-                    T.affected[y] = true; // Mark as affected (Algorithm 2, line 19)
+                    T.affected[y] = true; // Algorithm 2, line 19
                 }
             }
-        }
-        else
-        { // Handle edge deletion (Algorithm 2, lines 5-9)
-            // Check if edge is in SSSP tree
-            if (T.parent[v] == u)
+            else
             {
-#pragma omp critical
+                // Edge deletion (Algorithm 2, lines 5-9)
+                if (T.parent[v] == u)
                 {
-                    T.dist[v] = INT_MAX; // Set distance to infinity (Algorithm 2, line 7)
+                    // Allow redundant updates
+                    T.dist[v] = INT_MAX;
                     T.parent[v] = -1;
-                    T.affected_del[v] = true; // Mark deletion-affected (Algorithm 2, line 8)
-                    T.affected[v] = true;     // Mark as affected (Algorithm 2, line 9)
+                    T.affected_del[v] = true;
+                    T.affected[v] = true;
                 }
-            }
-            else if (T.parent[u] == v)
-            {
-#pragma omp critical
+                else if (T.parent[u] == v)
                 {
+                    // Allow redundant updates
                     T.dist[u] = INT_MAX;
                     T.parent[u] = -1;
                     T.affected_del[u] = true;
-                    T.affected[u] = true; // Mark the child vertex as affected
+                    T.affected[u] = true;
                 }
             }
         }
+    };
+
+    // Process deletions in batches
+    for (size_t i = 0; i < deletions.size(); i += batch_size)
+    {
+        vector<pair<pair<int, int>, int>> batch(
+            deletions.begin() + i,
+            deletions.begin() + min(i + batch_size, deletions.size()));
+        processBatch(batch, true);
     }
 
-    // Step 2: Update affected subgraphs iteratively (Article: Algorithm 4, lines 7-end, Section 5.1, Page 6)
-    // Combines deletion phase (lines 7-19) and update phase (lines 20-end)
+    // Process insertions in batches
+    for (size_t i = 0; i < insertions.size(); i += batch_size)
+    {
+        vector<pair<pair<int, int>, int>> batch(
+            insertions.begin() + i,
+            insertions.begin() + min(i + batch_size, insertions.size()));
+        processBatch(batch, false);
+    }
+
+    // Step 3: Update affected subgraphs (Algorithm 4, Section 5.1, Page 6)
     bool global_change = true;
-    int iteration = 0;
-    const int max_iterations = 2 * V; // Bound iterations to prevent infinite loops
-    while (global_change && iteration < max_iterations)
-    { // Continue until no changes or max iterations reached
+    while (global_change)
+    {
         global_change = false;
 
-        // Deletion Phase: Process deletion-affected vertices (Algorithm 4, lines 7-19)
-        // Disconnect children of affected vertices
+        // Deletion Phase (Algorithm 4, lines 7-19)
         bool local_del_change = false;
 #pragma omp parallel for schedule(dynamic) reduction(| : local_del_change)
-        for (size_t i = 0; i < local_vertices.size(); ++i)
+        for (int v = 0; v < V; ++v)
         {
-            int v = local_vertices[i];
             if (T.affected_del[v])
-            { // Check AffectedDel flag (Algorithm 4, line 8)
+            {
                 T.affected_del[v] = false;
-                // Reset distances for descendants (Algorithm 4, lines 12-15)
-                for (int c = 0; c < V; ++c)
+                queue<int> Q;
+                Q.push(v);
+                int level = 0;
+
+                // Disconnect children up to async_level (Section 5.1, Page 6: Asynchronous Updates)
+                while (!Q.empty() && level <= async_level)
                 {
-                    if (T.parent[c] == v)
+                    int x = Q.front();
+                    Q.pop();
+
+                    for (int c = 0; c < V; ++c)
                     {
-                        T.dist[c] = INT_MAX;
-                        T.parent[c] = -1;
-                        T.affected_del[c] = true;
-                        T.affected[c] = true;
-                        local_del_change = true; // Indicate change (Algorithm 4, line 15)
+                        if (T.parent[c] == x)
+                        {
+                            T.dist[c] = INT_MAX;
+                            T.parent[c] = -1;
+                            T.affected_del[c] = true;
+                            T.affected[c] = true;
+                            local_del_change = true;
+                            if (level < async_level)
+                                Q.push(c);
+                        }
                     }
+                    level++;
                 }
-                // Mark neighbors as affected to ensure they are re-evaluated (Algorithm 4, lines 38-41)
+
+                // Mark neighbors as affected (Algorithm 4, lines 38-41)
                 for (const auto &edge : G.adj[v])
                 {
                     T.affected[edge.first] = true;
@@ -459,218 +383,125 @@ void parallelSSSPUpdate(Graph &G, SSSPTree &T, const vector<pair<pair<int, int>,
             }
         }
 
-        // Synchronize affected flags across processes (Article: Distributed Synchronization, Section 4)
-        // Replaces queue-based synchronization in Algorithm 4 with MPI
-        vector<char> send_affected_del(V, 0), recv_affected_del(V, 0);
-        vector<char> send_affected(V, 0), recv_affected(V, 0);
-#pragma omp parallel for schedule(dynamic)
-        for (int v = 0; v < V; ++v)
-        {
-            send_affected_del[v] = T.affected_del[v];
-            send_affected[v] = T.affected[v];
-        }
-        MPI_Allreduce(send_affected_del.data(), recv_affected_del.data(), V, MPI_CHAR, MPI_LOR, MPI_COMM_WORLD);
-        MPI_Allreduce(send_affected.data(), recv_affected.data(), V, MPI_CHAR, MPI_LOR, MPI_COMM_WORLD);
-#pragma omp parallel for schedule(dynamic)
-        for (int v = 0; v < V; ++v)
-        {
-            T.affected_del[v] = recv_affected_del[v];
-            T.affected[v] = recv_affected[v];
-        }
-
-        // Update Phase: Recompute distances for affected vertices (Article: Algorithm 4, lines 20-end)
+        // Update Phase (Algorithm 4, lines 20-end)
         bool local_update_change = false;
 #pragma omp parallel for schedule(dynamic) reduction(| : local_update_change)
-        for (size_t i = 0; i < local_vertices.size(); ++i)
+        for (int v = 0; v < V; ++v)
         {
-            int v = local_vertices[i];
             if (T.affected[v])
-            {                          // Check Affected flag (Algorithm 4, line 25)
-                T.affected[v] = false; // Reset flag (Algorithm 4, line 26)
-                int min_dist = T.dist[v];
-                int best_parent = T.parent[v];
-                // Check neighbors for shortest path (Algorithm 4, lines 32-35)
-                for (const auto &edge : G.adj[v])
+            {
+                T.affected[v] = false;
+                queue<int> Q;
+                Q.push(v);
+                int level = 0;
+
+                while (!Q.empty() && level <= async_level)
                 {
-                    int n = edge.first;
-                    int w = edge.second;
-                    int new_dist = safeAdd(T.dist[n], w);
-                    if (new_dist < min_dist)
+                    int x = Q.front();
+                    Q.pop();
+
+                    // Check neighbors for shorter paths (Algorithm 4, lines 32-35)
+                    int min_dist = T.dist[x];
+                    int best_parent = T.parent[x];
+                    bool updated = false;
+
+                    for (const auto &edge : G.adj[x])
                     {
-                        min_dist = new_dist;
-                        best_parent = n;
-                        local_update_change = true; // Indicate change (Algorithm 4, line 34)
+                        int n = edge.first;
+                        int w = edge.second;
+                        int new_dist = safeAdd(T.dist[n], w);
+                        if (new_dist < min_dist)
+                        {
+                            min_dist = new_dist;
+                            best_parent = n;
+                            updated = true;
+                        }
                     }
-                }
-                if (min_dist != T.dist[v])
-                {
-                    T.dist[v] = min_dist;
-                    T.parent[v] = best_parent;
-                    T.affected[v] = true; // Mark vertex as affected (Algorithm 4, line 37)
-                    // Mark neighbors as affected (Algorithm 4, lines 38-41)
-                    for (const auto &edge : G.adj[v])
+
+                    if (updated)
                     {
-                        T.affected[edge.first] = true;
+                        // Allow redundant updates; correctness ensured by iterative convergence
+                        T.dist[x] = min_dist;
+                        T.parent[x] = best_parent;
+                        T.affected[x] = true;
+                        local_update_change = true;
+
+                        // Mark neighbors as affected (Algorithm 4, lines 38-41)
+                        for (const auto &edge : G.adj[x])
+                        {
+                            T.affected[edge.first] = true;
+                        }
+
+                        if (level < async_level)
+                            Q.push(x);
                     }
+
+                    level++;
                 }
             }
         }
 
-        // Synchronize distances and parents across processes (Article: Ensure Global Consistency, Section 4)
-        vector<int> send_dist(V), recv_dist(V);
-        vector<int> send_parent(V), recv_parent(V);
-#pragma omp parallel for schedule(dynamic)
-        for (int v = 0; v < V; ++v)
-        {
-            send_dist[v] = T.dist[v];
-            send_parent[v] = T.parent[v];
-        }
-        MPI_Allreduce(send_dist.data(), recv_dist.data(), V, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-        MPI_Allreduce(send_parent.data(), recv_parent.data(), V, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-#pragma omp parallel for schedule(dynamic)
-        for (int v = 0; v < V; ++v)
-        {
-            T.dist[v] = recv_dist[v];
-            T.parent[v] = recv_parent[v];
-        }
-
-        // Check for global convergence (Algorithm 4, line 4)
-        int local_change_int = local_del_change || local_update_change;
-        int global_change_int;
-        MPI_Allreduce(&local_change_int, &global_change_int, 1, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
-        global_change = global_change_int;
-
-        ++iteration;
-        // Debugging output to trace iterations (commented out)
-        /*
-        if (rank == 0) {
-            cout << "Rank " << rank << ": Iteration " << iteration << ", global_change=" << global_change << endl;
-            for (int v = 0; v < V; ++v) {
-                if (T.affected[v]) {
-                    cout << "Rank " << rank << ": Vertex " << v + 1 << " is affected" << endl;
-                }
-            }
-        }
-        */
+        global_change = local_del_change || local_update_change;
     }
 
-    // Warn if max iterations reached (potential non-convergence)
-    if (iteration >= max_iterations && rank == 0)
-    {
-        cout << "Warning: Reached maximum iterations (" << max_iterations << ") in parallelSSSPUpdate. Possible non-convergence." << endl;
-    }
+    // Ensure correctness by iterative convergence (Section 4, Page 4: Avoiding Cycle Formation)
+    // The iterative updates ensure distances converge to shortest paths, preventing cycles.
 }
 
 // Main function to orchestrate parallel SSSP computation
 int main(int argc, char *argv[])
 {
-    // Initialize MPI environment
-    MPI_Init(&argc, &argv);
-    int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    string graph_filename = "../data/graph.txt";
-    string changes_filename = "../data/update_small.txt";
-    vector<idx_t> xadj, adjncy, adjwgt;
-    idx_t nvtxs = 0, nedges = 0;
+    string filename = "graph.txt";
     Graph G(0);
 
-    // Load and preprocess graph (Article: Graph Preprocessing, Section 5, Page 6)
-    if (!loadGraph(graph_filename, xadj, adjncy, adjwgt, nvtxs, nedges, G, rank))
+    // Load and preprocess graph (Section 5, Page 6: Graph Preprocessing)
+    if (!loadGraph(filename, G))
     {
-        MPI_Finalize();
         return -1;
     }
 
-    // Partition graph across MPI processes (Article: Graph Partitioning, Section 4, Page 4)
-    vector<int> part(nvtxs);
-    partitionGraph(xadj, adjncy, adjwgt, size, part, rank);
-
-    // Compute initial SSSP tree on rank 0 (Article: Sequential SSSP Initialization, Section 2, Page 2)
-    SSSPTree T(nvtxs);
-    if (rank == 0)
-    {
-        sequentialSSSP(G, T, 0);
-    }
-
-    // Broadcast initial SSSP tree to all processes (Article: Distributed Initialization, Section 4)
-    MPI_Bcast(T.dist.data(), nvtxs, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(T.parent.data(), nvtxs, MPI_INT, 0, MPI_COMM_WORLD);
+    // Compute initial SSSP tree (Section 2, Page 2: Sequential SSSP Initialization)
+    SSSPTree T(G.V);
+    sequentialSSSP(G, T, 0);
 
     // Print initial SSSP tree
-    if (rank == 0)
+    cout << "\nInitial SSSP Tree (source vertex 1):\n";
+    cout << "Vertex\tDistance\tParent\n";
+    for (int i = 0; i < G.V; ++i)
     {
-        cout << "\nInitial SSSP Tree (source vertex 1):\n";
-        cout << "Vertex\tDistance\tParent\n";
-        for (idx_t i = 0; i < nvtxs; ++i)
-        {
-            cout << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i]))
-                 << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
-        }
+        cout << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i]))
+             << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
     }
 
-    // Load edge changes from file
-    auto changes = loadChanges(changes_filename, G, rank);
-
-    // Broadcast number of changes to all processes
-    int num_changes = changes.size();
-    MPI_Bcast(&num_changes, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    // Gather all changes to all processes (Article: Distributed Change Propagation, Section 4)
-    // Broadcast changes from rank 0 to all processes
-    vector<int> change_buf(num_changes * 3);
-    if (rank == 0)
-    {
-        for (int i = 0; i < num_changes; ++i)
-        {
-            change_buf[i * 3] = changes[i].first.first;
-            change_buf[i * 3 + 1] = changes[i].first.second;
-            change_buf[i * 3 + 2] = changes[i].second;
-        }
-    }
-    MPI_Bcast(change_buf.data(), num_changes * 3, MPI_INT, 0, MPI_COMM_WORLD);
-
-    // Reconstruct changes on all processes
-    changes.clear();
-    for (int i = 0; i < num_changes; ++i)
-    {
-        int u = change_buf[i * 3];
-        int v = change_buf[i * 3 + 1];
-        int w = change_buf[i * 3 + 2];
-        changes.push_back({{u, v}, w});
-    }
+    // Generate edge changes (Section 4, Page 4: Dynamic Graph Changes)
+    int num_changes = 5;
+    double insert_ratio = 0.0;
+    auto changes = generateChanges(G, num_changes, insert_ratio);
 
     // Print changes
-    if (rank == 0)
+    cout << "\nApplying " << changes.size() << " edge changes (insert_ratio=" << insert_ratio << "):\n";
+    for (const auto &change : changes)
     {
-        cout << "\nApplying " << changes.size() << " edge changes:\n";
-        for (const auto &change : changes)
-        {
-            int u = change.first.first + 1;
-            int v = change.first.second + 1;
-            int w = change.second;
-            cout << (w >= 0 ? "Insert" : "Delete") << " edge: (" << u << ", " << v << ") "
-                 << (w >= 0 ? "weight=" + to_string(w) : "") << "\n";
-        }
+        int u = change.first.first + 1;
+        int v = change.first.second + 1;
+        int w = change.second;
+        cout << (w >= 0 ? "Insert" : "Delete") << " edge: (" << u << ", " << v << ") "
+             << (w >= 0 ? "weight=" + to_string(w) : "") << "\n";
     }
 
-    // Update SSSP tree with dynamic changes (Article: Algorithm 4, Section 5.1, Page 6)
-    parallelSSSPUpdate(G, T, changes, part, rank, size);
+    // Update SSSP tree with dynamic changes (Algorithm 4, Section 5.1, Page 6)
+    int async_level = 2; // Section 5.1, Page 6: Asynchronous Updates
+    int batch_size = 2;  // Section 5.1, Page 7: Processing Batches of Changes
+    parallelSSSPUpdate(G, T, changes, async_level, batch_size);
 
     // Print updated SSSP tree
-    if (rank == 0)
+    cout << "\nUpdated SSSP Tree (source vertex 1):\n";
+    cout << "Vertex\tDistance\tParent\n";
+    for (int i = 0; i < G.V; ++i)
     {
-        cout << "\nUpdated SSSP Tree (source vertex 1):\n";
-        cout << "Vertex\tDistance\tParent\n";
-        for (idx_t i = 0; i < nvtxs; ++i)
-        {
-            cout << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i]))
-                 << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
-        }
+        cout << i + 1 << "\t" << (T.dist[i] == INT_MAX ? "INF" : to_string(T.dist[i]))
+             << "\t\t" << (T.parent[i] == -1 ? "NONE" : to_string(T.parent[i] + 1)) << "\n";
     }
 
-    // Finalize MPI environment
-    MPI_Finalize();
     return 0;
 }
